@@ -150,8 +150,7 @@
   </section>
 </main>
 <script>
-const ROOT = document.documentElement.dataset.root || "__ROOT__";
-const base = (ROOT === "__ROOT__" ? "" : ROOT) || "";
+const base = "__BASE_PATH__";
 
 let current = null;
 let kind = null;          // core | handler | route

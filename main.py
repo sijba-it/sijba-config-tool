@@ -115,7 +115,9 @@ def serialize_file(path: str, body: SerializeBody):
 @api.get("", response_class=HTMLResponse)
 def ui():
     html = UI_PATH.read_text(encoding="utf-8")
-    return HTMLResponse(html.replace("__ROOT__", ROOT_PATH or ""))
+    # Inject the ingress prefix once. Do not reuse a placeholder that also
+    # appears in a JS sentinel check — replace() would break `base`.
+    return HTMLResponse(html.replace("__BASE_PATH__", ROOT_PATH or ""))
 
 
 if ROOT_PATH:
