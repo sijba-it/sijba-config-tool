@@ -7,24 +7,38 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY fs_backend.py main.py handler.schema.json ./
+COPY fs_backend.py codec.py main.py handler.schema.json ./
+COPY static/ static/
 
-RUN python -m py_compile fs_backend.py main.py
+RUN python -m py_compile fs_backend.py codec.py main.py
+RUN test -f static/index.html
 RUN python - <<'PY'
 from pathlib import Path
 from fs_backend import FsBackend
-import tempfile, os
+from codec import parse_content, serialize_content
+import tempfile
 
 root = Path(tempfile.mkdtemp())
 (root / "handlers").mkdir()
-(root / "core.yaml").write_text("port: 8080\nlog_level: INFO\n")
+(root / "routes").mkdir()
+(root / "core.yaml").write_text("port: 8080\nlog_level: INFO\nwebhooks:\n  voice: tok\n")
 (root / "handlers" / "99.0-echo.json").write_text(
     '{"id":"echo","direction":"inbound","type":"exec_json","exec":"x","priority":99}'
+)
+(root / "routes" / "routes-voice.json").write_text(
+    '[{"pattern":"^x","inject":"@y {{ rest }}"}]'
 )
 b = FsBackend(root, Path("handler.schema.json"))
 assert b.validate("core.yaml")["ok"]
 assert b.validate("handlers/99.0-echo.json")["ok"]
+assert b.validate("routes/routes-voice.json")["ok"]
 b.put("core.yaml", "port: 9090\n")
 assert (root / "core.yaml.bak").is_file()
+core = parse_content("core.yaml", (root / "core.yaml.bak").read_text())
+assert core["data"]["webhooks"]["voice"] == "tok"
+assert "voice" in serialize_content("core.yaml", core["data"])
+h = parse_content("handlers/99.0-echo.json", (root / "handlers/99.0-echo.json").read_text())
+h["data"]["timeout_seconds"] = 12
+assert '"timeout_seconds": 12' in serialize_content("handlers/99.0-echo.json", h["data"])
 print("ok", b.list_files())
 PY
