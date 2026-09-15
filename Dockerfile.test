@@ -1,0 +1,30 @@
+# Lightweight sanity check for CI — fails the build if imports or a sample
+# validate/put round-trip break. No Core dependency.
+FROM docker.io/library/python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY fs_backend.py main.py handler.schema.json ./
+
+RUN python -m py_compile fs_backend.py main.py
+RUN python - <<'PY'
+from pathlib import Path
+from fs_backend import FsBackend
+import tempfile, os
+
+root = Path(tempfile.mkdtemp())
+(root / "handlers").mkdir()
+(root / "core.yaml").write_text("port: 8080\nlog_level: INFO\n")
+(root / "handlers" / "99.0-echo.json").write_text(
+    '{"id":"echo","direction":"inbound","type":"exec_json","exec":"x","priority":99}'
+)
+b = FsBackend(root, Path("handler.schema.json"))
+assert b.validate("core.yaml")["ok"]
+assert b.validate("handlers/99.0-echo.json")["ok"]
+b.put("core.yaml", "port: 9090\n")
+assert (root / "core.yaml.bak").is_file()
+print("ok", b.list_files())
+PY
