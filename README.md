@@ -16,6 +16,10 @@ list / get / put / validate shape.
 Writes are atomic (`.tmp` → rename) and leave a `.bak` beside the file.
 **Core does not hot-reload** — restart the sijba process/pod after save.
 
+The UI has **Form** and **Raw** tabs. Form is file-kind specific (handler
+fields / routes list / core.yaml options); unknown keys are preserved when
+saving from the form. Broken files stay editable in Raw.
+
 ## Local run
 
 ```bash
@@ -42,6 +46,8 @@ Open `http://localhost:8081/`.
 | `GET` | `/api/files/{path}` | read |
 | `PUT` | `/api/files/{path}` | write (`{"content":"…"}`) |
 | `POST` | `/api/validate/{path}` | validate (`{"content":"…"}` optional) |
+| `POST` | `/api/parse/{path}` | parse → `{kind, data}` for the form |
+| `POST` | `/api/serialize/{path}` | `{data}` → `{content}` |
 
 If `ROOT_PATH` is set (k8s: `/config-ui`), all of the above are under that prefix.
 

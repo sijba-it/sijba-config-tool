@@ -5,7 +5,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY fs_backend.py main.py handler.schema.json ./
+COPY fs_backend.py codec.py main.py handler.schema.json ./
+COPY static/ static/
 
 ENV SIJBA_CONFIG_DIR=/data/config
 ENV PORT=8081
