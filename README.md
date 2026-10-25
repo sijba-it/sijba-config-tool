@@ -71,3 +71,4 @@ Config lives at `/data/config` (seeded once from the ConfigMap). UI:
 - Hot-reload / restart of Core
 - Agent-controller config (later, via sijba — not filesystem)
 - Editing secrets that belong in env (`SIJBA_AUTH_TOKEN`, API keys)
+
