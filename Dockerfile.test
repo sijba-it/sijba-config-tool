@@ -7,10 +7,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY fs_backend.py codec.py main.py handler.schema.json ./
+COPY fs_backend.py codec.py provisioner.py main.py handler.schema.json ./
 COPY static/ static/
 
-RUN python -m py_compile fs_backend.py codec.py main.py
+COPY requirements-dev.txt pytest.ini ./
+COPY tests/ tests/
+RUN pip install --no-cache-dir -r requirements-dev.txt
+RUN python -m pyflakes *.py tests/ && python -m pytest -q
+RUN python -m py_compile fs_backend.py codec.py provisioner.py main.py
 RUN test -f static/index.html
 RUN python - <<'PY'
 from pathlib import Path
