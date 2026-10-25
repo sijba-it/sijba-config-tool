@@ -125,8 +125,9 @@
   .card h3 { margin: 0 0 .25rem; font-size: 1rem; display: flex; gap: .5rem; align-items: center; }
   .card .desc { color: var(--muted); font-size: .85rem; margin: 0 0 .75rem; }
   .badge { font-size: .7rem; padding: .1rem .45rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
-  .badge.running { color: var(--ok); border-color: var(--ok); }
-  .badge.starting { color: var(--accent); border-color: var(--accent); }
+  .badge.ok { color: var(--ok); border-color: var(--ok); }
+  .badge.pending { color: var(--accent); border-color: var(--accent); }
+  .badge.error { color: var(--bad); border-color: var(--bad); }
   .card .detail { font-size: .8rem; color: var(--muted); margin: .5rem 0 0; }
   .card .detail.bad { color: var(--bad); }
   .card .fields { display: flex; flex-direction: column; gap: .6rem; margin-bottom: .75rem; }
@@ -812,7 +813,7 @@ async function loadConnectors() {
     cards.innerHTML = "";
     for (const entry of catalog) cards.appendChild(renderConnector(entry, byType[entry.type]));
   }
-  if (active.some(c => c.status !== "running" || c.detail)) {
+  if (active.some(c => c.phase !== "ok")) {
     clearTimeout(connTimer);
     connTimer = setTimeout(loadConnectors, 5000);
   }
@@ -821,12 +822,11 @@ async function loadConnectors() {
 function renderConnector(entry, act) {
   const card = el("div", {className: "card"});
   const title = el("h3", null, entry.label);
-  if (act) title.appendChild(el("span", {className: "badge " + act.status}, act.status));
+  if (act) title.appendChild(el("span", {className: "badge " + act.phase}, act.status));
   card.appendChild(title);
   card.appendChild(el("p", {className: "desc"}, entry.description || ""));
   if (act && act.detail) {
-    const problem = /BackOff|Err|Error|Invalid|OOM|Failed|CreateContainer/.test(act.detail);
-    card.appendChild(el("p", {className: "detail" + (problem ? " bad" : "")}, act.detail));
+    card.appendChild(el("p", {className: "detail" + (act.phase === "error" ? " bad" : "")}, act.detail));
   }
 
   const fieldsBox = el("div", {className: "fields"});
