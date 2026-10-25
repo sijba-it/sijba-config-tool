@@ -51,6 +51,16 @@ Open `http://localhost:8081/`.
 
 If `ROOT_PATH` is set (k8s: `/config-ui`), all of the above are under that prefix.
 
+## Connectors (optional)
+
+If `PROVISIONER_URL` **and** `PROVISIONER_TOKEN` are set, the UI shows a
+"Connectors" tab (Pushover, …): list the catalog, activate with the form,
+deactivate. The tool only speaks the provisioner API
+([sijba-provisioner-k8s](../sijba-provisioner-k8s) or a hosted one) — it never
+touches Kubernetes, and the provisioner token never reaches the browser.
+Secret fields are write-only: the UI shows "set", never the value. Without
+those env vars the tab and the endpoints (`/api/connectors*`) don't exist.
+
 ## Docker / k8s
 
 Jenkins on `main` (same pattern as Core): test → multiarch build/push

@@ -116,6 +116,24 @@
   details.advanced > summary {
     cursor: pointer; color: var(--muted); font-size: .8rem; margin-bottom: .5rem;
   }
+  #view-tabs { display: none; margin-left: .5rem; }
+  #view-tabs.on { display: flex; }
+  #connectors-view { display: none; flex: 1; overflow: auto; padding: 1rem 1.25rem 2rem; }
+  #connectors-view.on { display: block; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: 1rem; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; }
+  .card h3 { margin: 0 0 .25rem; font-size: 1rem; display: flex; gap: .5rem; align-items: center; }
+  .card .desc { color: var(--muted); font-size: .85rem; margin: 0 0 .75rem; }
+  .badge { font-size: .7rem; padding: .1rem .45rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+  .badge.running { color: var(--ok); border-color: var(--ok); }
+  .badge.starting { color: var(--accent); border-color: var(--accent); }
+  .card .detail { font-size: .8rem; color: var(--bad); margin: .5rem 0 0; }
+  .card .fields { display: flex; flex-direction: column; gap: .6rem; margin-bottom: .75rem; }
+  .card .actions { display: flex; gap: .5rem; align-items: center; }
+  .card .msg { font-size: .8rem; color: var(--muted); }
+  .card .msg.ok { color: var(--ok); }
+  .card .msg.bad { color: var(--bad); }
+  .field .help { color: var(--muted); font-size: .7rem; }
   @media (max-width: 720px) {
     main { grid-template-columns: 1fr; grid-template-rows: 10rem 1fr; }
     #files { border-right: 0; border-bottom: 1px solid var(--border); }
@@ -127,6 +145,10 @@
 <header>
   <h1>sijba config</h1>
   <span class="hint">filesystem · restart core to apply</span>
+  <div class="tabs" id="view-tabs">
+    <button type="button" id="view-files" class="active">Files</button>
+    <button type="button" id="view-connectors-btn">Connectors</button>
+  </div>
   <div id="auth-bar">
     <input id="token" type="password" placeholder="Bearer token" autocomplete="off"/>
   </div>
@@ -149,6 +171,7 @@
     <div id="pane-raw"><textarea id="editor" spellcheck="false" disabled placeholder="Select a file…"></textarea></div>
   </section>
 </main>
+<section id="connectors-view"><div class="cards" id="cards"></div></section>
 <script>
 const base = "__BASE_PATH__";
 
@@ -750,6 +773,113 @@ document.getElementById("editor").addEventListener("keydown", (e) => {
     document.getElementById("btn-save").click();
   }
 });
+
+// ---- connectors (only when the server has a provisioner configured) ----
+const connectorsEnabled = "__CONNECTORS__" === "1";
+let connTimer = null;
+
+function showView(name) {
+  const conn = name === "connectors";
+  document.querySelector("main").style.display = conn ? "none" : "";
+  document.getElementById("connectors-view").classList.toggle("on", conn);
+  document.getElementById("view-files").classList.toggle("active", !conn);
+  document.getElementById("view-connectors-btn").classList.toggle("active", conn);
+  clearTimeout(connTimer);
+  if (conn) loadConnectors();
+}
+
+if (connectorsEnabled) {
+  document.getElementById("view-tabs").classList.add("on");
+  document.getElementById("view-files").onclick = () => showView("files");
+  document.getElementById("view-connectors-btn").onclick = () => showView("connectors");
+}
+
+async function loadConnectors() {
+  const cards = document.getElementById("cards");
+  let catalog, active;
+  try {
+    catalog = (await api("/api/connectors/catalog", {headers: headers()})).catalog;
+    active = (await api("/api/connectors", {headers: headers()})).connectors;
+  } catch (e) {
+    cards.innerHTML = '<p class="empty">' + esc(String(e.message || e)) + "</p>";
+    return;
+  }
+  const byType = Object.fromEntries(active.map(c => [c.type, c]));
+  // do not clobber a card the user is typing in
+  const typing = cards.contains(document.activeElement) && document.activeElement.tagName === "INPUT";
+  if (!typing) {
+    cards.innerHTML = "";
+    for (const entry of catalog) cards.appendChild(renderConnector(entry, byType[entry.type]));
+  }
+  if (active.some(c => c.status !== "running" || c.detail)) {
+    clearTimeout(connTimer);
+    connTimer = setTimeout(loadConnectors, 5000);
+  }
+}
+
+function renderConnector(entry, act) {
+  const card = el("div", {className: "card"});
+  const title = el("h3", null, entry.label);
+  if (act) title.appendChild(el("span", {className: "badge " + act.status}, act.status));
+  card.appendChild(title);
+  card.appendChild(el("p", {className: "desc"}, entry.description || ""));
+  if (act && act.detail) card.appendChild(el("p", {className: "detail"}, act.detail));
+
+  const fieldsBox = el("div", {className: "fields"});
+  const inputs = {};
+  for (const f of entry.fields) {
+    const cur = act ? act.fields[f.name] : null;
+    const input = el("input", {
+      type: f.secret ? "password" : "text",
+      autocomplete: "off",
+      placeholder: f.secret && cur && cur.set ? "set — leave empty to keep"
+        : (f.default || ""),
+    });
+    if (!f.secret) input.value = cur && cur.value ? cur.value : (act ? "" : (f.default || ""));
+    inputs[f.name] = input;
+    const wrap = el("div", {className: "field"},
+      el("label", null, f.label + (f.required ? " *" : "")), input);
+    if (f.help) wrap.appendChild(el("span", {className: "help"}, f.help));
+    fieldsBox.appendChild(wrap);
+  }
+  card.appendChild(fieldsBox);
+
+  const msg = el("span", {className: "msg"});
+  const save = el("button", {className: "act primary", type: "button"}, act ? "Save" : "Activate");
+  save.onclick = async () => {
+    const fields = {};
+    for (const [name, input] of Object.entries(inputs)) fields[name] = input.value;
+    save.disabled = true; msg.className = "msg"; msg.textContent = "working…";
+    try {
+      await api("/api/connectors/" + encodeURIComponent(entry.type), {
+        method: "PUT", headers: headers(), body: JSON.stringify({fields}),
+      });
+      await loadConnectors();
+    } catch (e) {
+      msg.className = "msg bad"; msg.textContent = String(e.message || e);
+      save.disabled = false;
+    }
+  };
+  const actions = el("div", {className: "actions"}, save);
+  if (act) {
+    const del = el("button", {className: "act", type: "button"}, "Deactivate");
+    del.onclick = async () => {
+      if (!confirm("Deactivate " + entry.label + "? Its stored credentials are deleted.")) return;
+      try {
+        await api("/api/connectors/" + encodeURIComponent(entry.type), {
+          method: "DELETE", headers: headers(),
+        });
+        await loadConnectors();
+      } catch (e) {
+        msg.className = "msg bad"; msg.textContent = String(e.message || e);
+      }
+    };
+    actions.appendChild(del);
+  }
+  actions.appendChild(msg);
+  card.appendChild(actions);
+  return card;
+}
 
 loadList();
 </script>

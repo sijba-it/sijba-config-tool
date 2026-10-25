@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from codec import parse_content, serialize_content
 from fs_backend import ConfigError, FsBackend
+from provisioner import Provisioner, ProvisionerError
 
 CONFIG_DIR = Path(os.environ.get("SIJBA_CONFIG_DIR", "./sijba-config"))
 AUTH_TOKEN = os.environ.get("SIJBA_AUTH_TOKEN") or None
@@ -30,6 +31,13 @@ PORT = int(os.environ.get("PORT", "8081"))
 UI_PATH = Path(__file__).parent / "static" / "index.html"
 
 backend = FsBackend(CONFIG_DIR, schema_path=SCHEMA_PATH)
+
+PROVISIONER_URL = (os.environ.get("PROVISIONER_URL") or "").strip()
+PROVISIONER_TOKEN = (os.environ.get("PROVISIONER_TOKEN") or "").strip()
+provisioner = (
+    Provisioner(PROVISIONER_URL, PROVISIONER_TOKEN)
+    if PROVISIONER_URL and PROVISIONER_TOKEN else None
+)
 
 app = FastAPI(title="sijba-config-tool", docs_url=None, redoc_url=None)
 api = FastAPI(title="sijba-config-tool")
@@ -111,12 +119,48 @@ def serialize_file(path: str, body: SerializeBody):
     return {"content": serialize_content(path, body.data)}
 
 
+class ConnectorBody(BaseModel):
+    fields: dict = Field(default_factory=dict)
+
+
+def _need_provisioner() -> Provisioner:
+    if provisioner is None:
+        raise HTTPException(status_code=404, detail="connectors not configured")
+    return provisioner
+
+
+@api.exception_handler(ProvisionerError)
+async def _provisioner_error(_request: Request, exc: ProvisionerError):
+    return JSONResponse({"error": str(exc)}, status_code=exc.status)
+
+
+@api.get("/api/connectors/catalog", dependencies=[Depends(_check_auth)])
+def connectors_catalog():
+    return _need_provisioner().catalog()
+
+
+@api.get("/api/connectors", dependencies=[Depends(_check_auth)])
+def connectors_list():
+    return _need_provisioner().list()
+
+
+@api.put("/api/connectors/{ctype}", dependencies=[Depends(_check_auth)])
+def connectors_put(ctype: str, body: ConnectorBody):
+    return _need_provisioner().put(ctype, body.fields)
+
+
+@api.delete("/api/connectors/{ctype}", dependencies=[Depends(_check_auth)])
+def connectors_delete(ctype: str):
+    return _need_provisioner().delete(ctype)
+
+
 @api.get("/", response_class=HTMLResponse)
 @api.get("", response_class=HTMLResponse)
 def ui():
     html = UI_PATH.read_text(encoding="utf-8")
     # Inject the ingress prefix once. Do not reuse a placeholder that also
     # appears in a JS sentinel check — replace() would break `base`.
+    html = html.replace("__CONNECTORS__", "1" if provisioner else "0")
     return HTMLResponse(html.replace("__BASE_PATH__", ROOT_PATH or ""))
 
 
