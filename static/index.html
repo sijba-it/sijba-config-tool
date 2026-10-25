@@ -127,7 +127,8 @@
   .badge { font-size: .7rem; padding: .1rem .45rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
   .badge.running { color: var(--ok); border-color: var(--ok); }
   .badge.starting { color: var(--accent); border-color: var(--accent); }
-  .card .detail { font-size: .8rem; color: var(--bad); margin: .5rem 0 0; }
+  .card .detail { font-size: .8rem; color: var(--muted); margin: .5rem 0 0; }
+  .card .detail.bad { color: var(--bad); }
   .card .fields { display: flex; flex-direction: column; gap: .6rem; margin-bottom: .75rem; }
   .card .actions { display: flex; gap: .5rem; align-items: center; }
   .card .msg { font-size: .8rem; color: var(--muted); }
@@ -823,7 +824,10 @@ function renderConnector(entry, act) {
   if (act) title.appendChild(el("span", {className: "badge " + act.status}, act.status));
   card.appendChild(title);
   card.appendChild(el("p", {className: "desc"}, entry.description || ""));
-  if (act && act.detail) card.appendChild(el("p", {className: "detail"}, act.detail));
+  if (act && act.detail) {
+    const problem = /BackOff|Err|Error|Invalid|OOM|Failed|CreateContainer/.test(act.detail);
+    card.appendChild(el("p", {className: "detail" + (problem ? " bad" : "")}, act.detail));
+  }
 
   const fieldsBox = el("div", {className: "fields"});
   const inputs = {};
