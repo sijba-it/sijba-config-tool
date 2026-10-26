@@ -3,195 +3,234 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>sijba config</title>
+<title>sijba</title>
 <style>
   :root {
-    --bg: #1a1d23;
-    --panel: #242830;
-    --border: #3a4050;
+    --bg: #15171c;
+    --panel: #1e2128;
+    --panel-2: #262a33;
+    --border: #2f3440;
     --text: #e8eaed;
     --muted: #9aa0a6;
-    --accent: #6db3f2;
-    --ok: #7dcea0;
-    --bad: #e07a7a;
-    --mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
-    --sans: "IBM Plex Sans", system-ui, sans-serif;
+    --accent: #7aa7ff;
+    --accent-bg: #2b4a86;
+    --ok: #6fcf97;
+    --warn: #e6b450;
+    --bad: #ef7d7d;
+    --radius: 10px;
+    --mono: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6f8; --panel: #ffffff; --panel-2: #f0f2f5; --border: #dde1e7;
+      --text: #1d2026; --muted: #646b75; --accent: #2f66d0; --accent-bg: #2f66d0;
+      --ok: #1f9d55; --warn: #b7791f; --bad: #d64545;
+    }
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; font-family: var(--sans);
-    background: var(--bg); color: var(--text);
-    min-height: 100vh; display: flex; flex-direction: column;
+  [hidden] { display: none !important; }
+  body { margin: 0; font-family: var(--sans); background: var(--bg); color: var(--text);
+         min-height: 100vh; font-size: 15px; line-height: 1.45; }
+  button { font: inherit; cursor: pointer; }
+  input, select, textarea {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: .5rem .65rem; width: 100%;
   }
-  header {
-    display: flex; align-items: baseline; gap: 1rem;
-    padding: .75rem 1.25rem; border-bottom: 1px solid var(--border);
-    background: var(--panel);
-  }
-  header h1 { font-size: 1.1rem; margin: 0; letter-spacing: .02em; }
-  header .hint { color: var(--muted); font-size: .85rem; }
-  #auth-bar { display: flex; gap: .5rem; align-items: center; margin-left: auto; }
-  #auth-bar input, .field input, .field select, .field textarea, .kv input, .route-row input {
-    background: var(--bg); border: 1px solid var(--border); color: var(--text);
-    padding: .35rem .55rem; border-radius: 4px; font: inherit;
-  }
-  #auth-bar input { width: 14rem; font-family: var(--mono); font-size: .8rem; }
-  main { display: grid; grid-template-columns: 16rem 1fr; flex: 1; min-height: 0; }
-  #files {
-    border-right: 1px solid var(--border); overflow: auto; padding: .5rem 0;
-    background: var(--panel);
-  }
-  #files button {
-    display: block; width: 100%; text-align: left; border: 0; background: transparent;
-    color: var(--text); padding: .4rem 1rem; font: inherit; cursor: pointer;
-    font-family: var(--mono); font-size: .8rem;
-  }
-  #files button:hover { background: #2c313c; }
-  #files button.active { background: #343b4a; color: var(--accent); }
-  #files .kind { color: var(--muted); font-size: .7rem; margin-right: .35rem; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  code { font-family: var(--mono); font-size: .85em; }
+
+  .btn { border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+         padding: .45rem .9rem; border-radius: 8px; white-space: nowrap; }
+  .btn:hover { border-color: var(--muted); }
+  .btn.primary { background: var(--accent-bg); border-color: var(--accent-bg); color: #fff; }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+  .btn.ghost:hover { color: var(--text); }
+  .btn.danger { color: var(--bad); }
+  .btn.small { padding: .25rem .6rem; font-size: .85rem; }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  /* login */
+  #login { min-height: 100vh; display: grid; place-items: center; padding: 1rem; }
+  .login-card { width: 100%; max-width: 22rem; background: var(--panel); border: 1px solid var(--border);
+                border-radius: 14px; padding: 2rem 1.5rem; }
+  .login-card h1 { margin: 0; font-size: 1.6rem; }
+  .login-card p { color: var(--muted); margin: .25rem 0 1.5rem; }
+  .login-card form { display: flex; flex-direction: column; gap: .75rem; }
+  .login-card .err { color: var(--bad); font-size: .9rem; min-height: 1.2em; }
+
+  /* shell */
+  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: .5rem;
+           padding: .6rem 1rem; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  header .brand { font-weight: 700; font-size: 1.1rem; margin-right: .75rem; }
+  nav.pages { display: flex; gap: .25rem; }
+  nav.pages button { background: transparent; border: 0; color: var(--muted); padding: .4rem .75rem; border-radius: 8px; }
+  nav.pages button.active { background: var(--panel-2); color: var(--text); }
+  header .spacer { flex: 1; }
+  #apply-btn.pending { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+
+  .page { max-width: 64rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  .page h2 { font-size: 1.05rem; margin: 2rem 0 .25rem; }
+  .page h2:first-child { margin-top: 0; }
+  .lead { color: var(--muted); margin: 0 0 1rem; font-size: .92rem; }
+
+  /* connector cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 1rem; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem;
+          display: flex; flex-direction: column; gap: .6rem; }
+  .card-head { display: flex; align-items: center; gap: .65rem; }
+  .avatar { width: 2.2rem; height: 2.2rem; border-radius: 9px; display: grid; place-items: center;
+            font-weight: 700; color: #fff; flex: none; }
+  .card-head .name { font-weight: 600; }
+  .card-head .spacer { flex: 1; }
+  .card .desc { color: var(--muted); font-size: .9rem; margin: 0; }
+  .pill { font-size: .75rem; padding: .1rem .5rem; border-radius: 999px; border: 1px solid currentColor; }
+  .pill.ok { color: var(--ok); } .pill.pending { color: var(--warn); } .pill.error { color: var(--bad); }
+  .card .detail { font-size: .85rem; color: var(--muted); margin: 0; }
+  .card .detail.bad { color: var(--bad); }
+  .card form { display: flex; flex-direction: column; gap: .75rem; border-top: 1px solid var(--border); padding-top: .75rem; }
+  .card .actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  .msg { font-size: .85rem; color: var(--muted); } .msg.bad { color: var(--bad); } .msg.ok { color: var(--ok); }
+  .f label { display: block; font-size: .85rem; margin-bottom: .25rem; }
+  .f .help { color: var(--muted); font-size: .8rem; margin-top: .25rem; }
+  details.more > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+  details.more[open] > summary { margin-bottom: .75rem; }
+  details.more .fields { display: flex; flex-direction: column; gap: .75rem; }
+
+  /* webhooks */
+  .list { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
+  .row { display: flex; align-items: center; gap: .75rem; padding: .7rem 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .row:first-child { border-top: 0; }
+  .row .name { font-weight: 600; min-width: 6rem; }
+  .row .url { flex: 1; min-width: 12rem; color: var(--muted); font-family: var(--mono); font-size: .8rem; overflow-wrap: anywhere; }
+  .row.add input { flex: 1; min-width: 10rem; width: auto; }
+  .empty { color: var(--muted); font-size: .9rem; padding: .7rem 1rem; margin: 0; }
+
+  /* toast */
+  #toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 10;
+           background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+           padding: .6rem 1rem; max-width: calc(100vw - 2rem); box-shadow: 0 6px 24px rgba(0,0,0,.3); }
+  #toast.bad { border-color: var(--bad); } #toast.ok { border-color: var(--ok); }
+
+  /* advanced: file editor */
+  #advanced { display: grid; grid-template-columns: 15rem 1fr; height: calc(100vh - 3.3rem); }
+  #files { border-right: 1px solid var(--border); overflow: auto; padding: .5rem 0; background: var(--panel); }
+  #files .group { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; padding: .75rem 1rem .25rem; }
+  #files button { display: block; width: 100%; text-align: left; border: 0; background: transparent;
+                  color: var(--text); padding: .35rem 1rem; font-family: var(--mono); font-size: .8rem; }
+  #files button:hover { background: var(--panel-2); }
+  #files button.active { background: var(--panel-2); color: var(--accent); }
   #editor-wrap { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-  #toolbar {
-    display: flex; gap: .5rem; align-items: center; flex-wrap: wrap;
-    padding: .5rem 1rem; border-bottom: 1px solid var(--border);
-  }
+  #toolbar { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; padding: .5rem 1rem; border-bottom: 1px solid var(--border); }
   #toolbar .path { font-family: var(--mono); font-size: .85rem; color: var(--accent); }
   #toolbar .spacer { flex: 1; }
   .tabs { display: flex; gap: .25rem; }
-  .tabs button {
-    background: transparent; border: 1px solid transparent; color: var(--muted);
-    padding: .3rem .7rem; border-radius: 4px; cursor: pointer; font: inherit;
-  }
-  .tabs button.active {
-    color: var(--text); border-color: var(--border); background: #2c313c;
-  }
-  button.act {
-    background: #3a4558; color: var(--text); border: 1px solid var(--border);
-    padding: .35rem .75rem; border-radius: 4px; cursor: pointer; font: inherit;
-  }
-  button.act.primary { background: #2a5a8a; border-color: #3a7ab0; }
-  button.act.small { padding: .2rem .5rem; font-size: .8rem; }
-  button.act:disabled { opacity: .5; cursor: default; }
+  .tabs button { background: transparent; border: 1px solid transparent; color: var(--muted); padding: .25rem .65rem; border-radius: 6px; }
+  .tabs button.active { color: var(--text); border-color: var(--border); background: var(--panel-2); }
   #status { font-size: .85rem; color: var(--muted); max-width: 28rem; }
-  #status.ok { color: var(--ok); }
-  #status.bad { color: var(--bad); }
+  #status.ok { color: var(--ok); } #status.bad { color: var(--bad); }
   #pane-raw, #pane-form { flex: 1; min-height: 0; display: none; }
   #pane-raw.active, #pane-form.active { display: flex; flex-direction: column; }
-  #editor {
-    flex: 1; width: 100%; border: 0; resize: none; padding: 1rem;
-    background: var(--bg); color: var(--text);
-    font-family: var(--mono); font-size: .85rem; line-height: 1.45; tab-size: 2;
-  }
+  #editor { flex: 1; border: 0; border-radius: 0; resize: none; padding: 1rem; background: var(--bg);
+            font-family: var(--mono); font-size: .85rem; line-height: 1.45; tab-size: 2; }
   #editor:focus { outline: none; }
-  #form {
-    flex: 1; overflow: auto; padding: 1rem 1.25rem 2rem;
-  }
+  #form { flex: 1; overflow: auto; padding: 1rem 1.25rem 2rem; }
   #form.disabled { opacity: .55; pointer-events: none; }
-  .section {
-    margin-bottom: 1.25rem; padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border);
-  }
-  .section h2 {
-    margin: 0 0 .75rem; font-size: .75rem; text-transform: uppercase;
-    letter-spacing: .06em; color: var(--muted); font-weight: 600;
-  }
-  .grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-    gap: .75rem 1rem;
-  }
+  .section { margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+  .section h3 { margin: 0 0 .75rem; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .section .note { color: var(--muted); font-size: .85rem; margin: -.4rem 0 .75rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: .75rem 1rem; }
   .field { display: flex; flex-direction: column; gap: .25rem; }
   .field.wide { grid-column: 1 / -1; }
-  .field label { font-size: .75rem; color: var(--muted); }
-  .field input, .field select, .field textarea { width: 100%; }
+  .field label { font-size: .78rem; color: var(--muted); }
   .field textarea { min-height: 4.5rem; font-family: var(--mono); font-size: .8rem; }
-  .field.checks { flex-direction: row; flex-wrap: wrap; gap: .75rem 1.25rem; align-items: center; padding-top: 1.1rem; }
+  .field.checks { flex-direction: row; flex-wrap: wrap; gap: .75rem 1.25rem; align-items: center; }
   .field.checks label { display: flex; gap: .35rem; align-items: center; color: var(--text); font-size: .85rem; }
-  .kv, .route-list { display: flex; flex-direction: column; gap: .4rem; }
-  .kv-row, .route-row {
-    display: grid; gap: .4rem; align-items: center;
-  }
+  .field.checks input { width: auto; }
+  .kv, .route-list { display: flex; flex-direction: column; gap: .4rem; margin-bottom: .5rem; }
+  .kv-row, .route-row { display: grid; gap: .4rem; align-items: center; }
   .kv-row { grid-template-columns: 1fr 1fr auto; }
   .route-row { grid-template-columns: 1fr 1.2fr auto; }
-  .empty { color: var(--muted); font-size: .85rem; }
-  details.advanced { margin-top: .5rem; }
-  details.advanced > summary {
-    cursor: pointer; color: var(--muted); font-size: .8rem; margin-bottom: .5rem;
-  }
-  #view-tabs { display: none; margin-left: .5rem; }
-  #view-tabs.on { display: flex; }
-  #connectors-view { display: none; flex: 1; overflow: auto; padding: 1rem 1.25rem 2rem; }
-  #connectors-view.on { display: block; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: 1rem; }
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; }
-  .card h3 { margin: 0 0 .25rem; font-size: 1rem; display: flex; gap: .5rem; align-items: center; }
-  .card .desc { color: var(--muted); font-size: .85rem; margin: 0 0 .75rem; }
-  .badge { font-size: .7rem; padding: .1rem .45rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
-  .badge.ok { color: var(--ok); border-color: var(--ok); }
-  .badge.pending { color: var(--accent); border-color: var(--accent); }
-  .badge.error { color: var(--bad); border-color: var(--bad); }
-  .card .detail { font-size: .8rem; color: var(--muted); margin: .5rem 0 0; }
-  .card .detail.bad { color: var(--bad); }
-  .card .fields { display: flex; flex-direction: column; gap: .6rem; margin-bottom: .75rem; }
-  .card .actions { display: flex; gap: .5rem; align-items: center; }
-  .card .msg { font-size: .8rem; color: var(--muted); }
-  .card .msg.ok { color: var(--ok); }
-  .card .msg.bad { color: var(--bad); }
-  .field .help { color: var(--muted); font-size: .7rem; }
+  details.advanced > summary { cursor: pointer; color: var(--muted); font-size: .85rem; margin-bottom: .5rem; }
+
   @media (max-width: 720px) {
-    main { grid-template-columns: 1fr; grid-template-rows: 10rem 1fr; }
-    #files { border-right: 0; border-bottom: 1px solid var(--border); }
+    header .brand { margin-right: .25rem; }
+    #advanced { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: calc(100vh - 3.3rem); }
+    #files { border-right: 0; border-bottom: 1px solid var(--border); max-height: 14rem; }
+    #editor { min-height: 60vh; }
     .kv-row, .route-row { grid-template-columns: 1fr; }
   }
 </style>
 </head>
 <body>
-<header>
-  <h1>sijba config</h1>
-  <span class="hint">filesystem · restart core to apply</span>
-  <div class="tabs" id="view-tabs">
-    <button type="button" id="view-files" class="active">Files</button>
-    <button type="button" id="view-connectors-btn">Connectors</button>
+
+<section id="login" hidden>
+  <div class="login-card">
+    <h1>sijba</h1>
+    <p>Sign in to configure your sijba.</p>
+    <form id="login-form">
+      <input id="login-token" type="password" placeholder="Access token" autocomplete="current-password" autofocus/>
+      <button class="btn primary" type="submit">Sign in</button>
+      <div class="err" id="login-err"></div>
+    </form>
   </div>
-  <div id="auth-bar">
-    <input id="token" type="password" placeholder="Bearer token" autocomplete="off"/>
-  </div>
-</header>
-<main>
-  <nav id="files"></nav>
-  <section id="editor-wrap">
-    <div id="toolbar">
-      <span class="path" id="cur-path">—</span>
-      <div class="tabs">
-        <button type="button" id="tab-form" class="active">Form</button>
-        <button type="button" id="tab-raw">Raw</button>
-      </div>
-      <span class="spacer"></span>
-      <span id="status"></span>
-      <button class="act" id="btn-validate" disabled>Validate</button>
-      <button class="act primary" id="btn-save" disabled>Save</button>
+</section>
+
+<div id="app" hidden>
+  <header>
+    <span class="brand">sijba</span>
+    <nav class="pages">
+      <button type="button" data-page="connections" class="active">Connections</button>
+      <button type="button" data-page="advanced">Advanced</button>
+    </nav>
+    <span class="spacer"></span>
+    <button class="btn" id="apply-btn" type="button" title="Load saved config files into the running sijba">Apply changes</button>
+    <button class="btn ghost" id="logout-btn" type="button">Sign out</button>
+  </header>
+
+  <section class="page" id="page-connections">
+    <div id="conn-block">
+      <h2>Apps &amp; services</h2>
+      <p class="lead">Connect sijba to services you use. Each one asks only for what it needs.</p>
+      <div class="cards" id="cards"></div>
     </div>
-    <div id="pane-form" class="active"><div id="form"><p class="empty">Select a file…</p></div></div>
-    <div id="pane-raw"><textarea id="editor" spellcheck="false" disabled placeholder="Select a file…"></textarea></div>
+    <h2>Webhooks</h2>
+    <p class="lead">Addresses other tools (Shortcuts, Pebble, home automation, …) can send messages to. Treat them like passwords.</p>
+    <div class="list" id="hooks"></div>
   </section>
-</main>
-<section id="connectors-view"><div class="cards" id="cards"></div></section>
+
+  <section id="page-advanced" hidden>
+    <div id="advanced">
+      <nav id="files"></nav>
+      <section id="editor-wrap">
+        <div id="toolbar">
+          <span class="path" id="cur-path">—</span>
+          <div class="tabs">
+            <button type="button" id="tab-form" class="active">Form</button>
+            <button type="button" id="tab-raw">Raw</button>
+          </div>
+          <span class="spacer"></span>
+          <span id="status"></span>
+          <button class="btn small" id="btn-validate" disabled>Validate</button>
+          <button class="btn small primary" id="btn-save" disabled>Save</button>
+        </div>
+        <div id="pane-form" class="active"><div id="form"><p class="empty">Select a file on the left.</p></div></div>
+        <div id="pane-raw"><textarea id="editor" spellcheck="false" disabled placeholder="Select a file…"></textarea></div>
+      </section>
+    </div>
+  </section>
+</div>
+
+<div id="toast" hidden></div>
+
 <script>
 const base = "__BASE_PATH__";
-
-let current = null;
-let kind = null;          // core | handler | route
-let mode = "form";        // form | raw
-let model = null;         // parsed object/array
-let parseError = null;
-let knownKeys = new Set(); // keys the form owns (for merge)
+const connectorsEnabled = "__CONNECTORS__" === "1";
+const publicCoreUrl = "__PUBLIC_CORE_URL__" || location.origin;
 
 let token = localStorage.getItem("sijba_config_token") || "";
-const $token = document.getElementById("token");
-$token.value = token;
-$token.addEventListener("change", () => {
-  token = $token.value.trim();
-  localStorage.setItem("sijba_config_token", token);
-  loadList();
-});
+
+/* ---------- helpers ---------- */
 
 function headers() {
   const h = {"Content-Type": "application/json"};
@@ -199,20 +238,315 @@ function headers() {
   return h;
 }
 
-function setStatus(msg, cls) {
-  const el = document.getElementById("status");
-  el.textContent = msg || "";
-  el.className = cls || "";
-}
+class AuthError extends Error {}
 
 async function api(path, opts) {
-  const r = await fetch(base + path, opts);
+  const r = await fetch(base + path, Object.assign({headers: headers()}, opts || {}));
   const data = await r.json().catch(() => ({}));
+  if (r.status === 401) { showLogin(token ? "Please sign in again." : ""); throw new AuthError("unauthorized"); }
   if (!r.ok) {
     const detail = data.error || data.detail;
     throw new Error(typeof detail === "string" ? detail : (r.statusText || "request failed"));
   }
   return data;
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+}
+
+function el(tag, attrs, ...kids) {
+  const n = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) {
+    if (k === "className") n.className = v;
+    else if (k === "text") n.textContent = v;
+    else if (k === "checked") n.checked = !!v;
+    else if (k === "value") n.value = v == null ? "" : v;
+    else if (k.startsWith("on") && typeof v === "function") n.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (v !== undefined && v !== null && v !== false) n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of kids) {
+    if (c == null) continue;
+    n.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  }
+  return n;
+}
+
+let toastTimer = null;
+function toast(msg, cls) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.className = cls || ""; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, cls === "bad" ? 9000 : 4000);
+}
+
+function errText(e) { return String(e && e.message || e); }
+
+/* ---------- login ---------- */
+
+function showLogin(msg) {
+  document.getElementById("app").hidden = true;
+  document.getElementById("login").hidden = false;
+  document.getElementById("login-err").textContent = msg || "";
+  document.getElementById("login-token").focus();
+}
+
+document.getElementById("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  token = document.getElementById("login-token").value.trim();
+  if (!token) return;
+  try {
+    await api("/api/me");
+  } catch (err) {
+    if (!(err instanceof AuthError)) document.getElementById("login-err").textContent = errText(err);
+    else document.getElementById("login-err").textContent = "Wrong token.";
+    return;
+  }
+  localStorage.setItem("sijba_config_token", token);
+  document.getElementById("login-token").value = "";
+  startApp();
+});
+
+document.getElementById("logout-btn").onclick = () => {
+  token = "";
+  localStorage.removeItem("sijba_config_token");
+  showLogin("");
+};
+
+/* ---------- shell ---------- */
+
+function showPage(name) {
+  document.querySelectorAll("nav.pages button").forEach(b => b.classList.toggle("active", b.dataset.page === name));
+  document.getElementById("page-connections").hidden = name !== "connections";
+  document.getElementById("page-advanced").hidden = name !== "advanced";
+  clearTimeout(connTimer);
+  if (name === "connections") loadConnections();
+  else loadList();
+}
+document.querySelectorAll("nav.pages button").forEach(b => b.onclick = () => showPage(b.dataset.page));
+
+function setPending(on) {
+  if (on) localStorage.setItem("sijba_pending_apply", "1");
+  else localStorage.removeItem("sijba_pending_apply");
+  const btn = document.getElementById("apply-btn");
+  btn.classList.toggle("primary", on);
+  btn.classList.toggle("pending", on);
+}
+
+document.getElementById("apply-btn").onclick = async () => {
+  const btn = document.getElementById("apply-btn");
+  btn.disabled = true;
+  try {
+    const r = await api("/api/apply", {method: "POST"});
+    setPending(false);
+    const notes = [];
+    if (r.errors && r.errors.length) notes.push("Skipped: " + r.errors.join("; "));
+    if (r.restart_required && r.restart_required.length)
+      notes.push("Needs a restart of sijba: " + r.restart_required.join(", "));
+    if (notes.length) toast("Applied. " + notes.join(" · "), "bad");
+    else toast("Applied · " + (r.handlers || []).length + " handlers, " + (r.webhooks || []).length + " webhooks", "ok");
+  } catch (e) {
+    if (!(e instanceof AuthError)) toast("Apply failed: " + errText(e), "bad");
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+async function startApp() {
+  document.getElementById("login").hidden = true;
+  document.getElementById("app").hidden = false;
+  document.getElementById("conn-block").hidden = !connectorsEnabled;
+  setPending(localStorage.getItem("sijba_pending_apply") === "1");
+  showPage("connections");
+}
+
+/* ---------- connections: connectors ---------- */
+
+let connTimer = null;
+const openForms = new Set();
+const COLORS = ["#2f66d0", "#2aa198", "#d33682", "#cb4b16", "#6c71c4", "#859900"];
+
+function avatarColor(type) {
+  let h = 0;
+  for (const c of type) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return COLORS[h % COLORS.length];
+}
+
+const STATUS_TEXT = {ok: "Active", pending: "Starting", error: "Problem"};
+
+async function loadConnections() {
+  if (connectorsEnabled) loadConnectors();
+  loadHooks();
+}
+
+async function loadConnectors() {
+  const cards = document.getElementById("cards");
+  let catalog, active;
+  try {
+    catalog = (await api("/api/connectors/catalog")).catalog;
+    active = (await api("/api/connectors")).connectors;
+  } catch (e) {
+    if (!(e instanceof AuthError)) cards.innerHTML = '<p class="empty">' + esc(errText(e)) + "</p>";
+    return;
+  }
+  const byType = Object.fromEntries(active.map(c => [c.type, c]));
+  const typing = cards.contains(document.activeElement) && ["INPUT", "SELECT"].includes(document.activeElement.tagName);
+  if (!typing) {
+    cards.innerHTML = "";
+    for (const entry of catalog) cards.appendChild(renderConnector(entry, byType[entry.type]));
+  }
+  clearTimeout(connTimer);
+  if (active.some(c => c.phase !== "ok")) connTimer = setTimeout(loadConnectors, 4000);
+}
+
+function fieldInput(f, cur, act) {
+  const input = el("input", {type: f.secret ? "password" : "text", autocomplete: "off",
+    placeholder: f.secret && cur && cur.set ? "Saved — leave empty to keep" : (f.default || "")});
+  if (!f.secret) input.value = cur && cur.value ? cur.value : (act ? "" : (f.default || ""));
+  const wrap = el("div", {className: "f"}, el("label", null, f.label + (f.required ? "" : " (optional)")), input);
+  if (f.help) wrap.appendChild(el("div", {className: "help"}, f.help));
+  return [wrap, input];
+}
+
+function renderConnector(entry, act) {
+  const card = el("div", {className: "card"});
+  const head = el("div", {className: "card-head"},
+    el("div", {className: "avatar", style: "background:" + avatarColor(entry.type)}, entry.label.slice(0, 1)),
+    el("span", {className: "name"}, entry.label),
+    el("span", {className: "spacer"}));
+  if (act) head.appendChild(el("span", {className: "pill " + act.phase}, STATUS_TEXT[act.phase] || act.status));
+  card.appendChild(head);
+  card.appendChild(el("p", {className: "desc"}, entry.description || ""));
+  if (act && act.detail) {
+    card.appendChild(el("p", {className: "detail" + (act.phase === "error" ? " bad" : "")}, act.detail));
+  }
+
+  const form = el("form", {});
+  form.hidden = !openForms.has(entry.type);
+  const inputs = {};
+  const more = el("details", {className: "more"}, el("summary", null, "More options"));
+  const moreFields = el("div", {className: "fields"});
+  for (const f of entry.fields) {
+    const [wrap, input] = fieldInput(f, act ? act.fields[f.name] : null, act);
+    inputs[f.name] = input;
+    (f.advanced ? moreFields : form).appendChild(wrap);
+  }
+  if (moreFields.children.length) { more.appendChild(moreFields); form.appendChild(more); }
+
+  const msg = el("span", {className: "msg"});
+  const submit = el("button", {className: "btn primary", type: "submit"}, act ? "Save" : "Activate");
+  const cancel = el("button", {className: "btn ghost", type: "button", onClick: () => {
+    openForms.delete(entry.type); form.hidden = true; toggle.hidden = false;
+  }}, "Cancel");
+  form.appendChild(el("div", {className: "actions"}, submit, cancel, msg));
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fields = {};
+    for (const [name, input] of Object.entries(inputs)) fields[name] = input.value;
+    submit.disabled = true; msg.className = "msg"; msg.textContent = act ? "Saving…" : "Starting…";
+    try {
+      await api("/api/connectors/" + encodeURIComponent(entry.type), {method: "PUT", body: JSON.stringify({fields})});
+      openForms.delete(entry.type);
+      toast(entry.label + (act ? " saved" : " activated"), "ok");
+      document.activeElement && document.activeElement.blur();
+      await loadConnectors();
+    } catch (err) {
+      if (err instanceof AuthError) return;
+      msg.className = "msg bad"; msg.textContent = errText(err); submit.disabled = false;
+    }
+  });
+
+  const toggle = el("div", {className: "actions"});
+  toggle.hidden = !form.hidden;
+  toggle.appendChild(el("button", {className: act ? "btn" : "btn primary", type: "button", onClick: () => {
+    openForms.add(entry.type); form.hidden = false; toggle.hidden = true;
+    const first = form.querySelector("input"); if (first) first.focus();
+  }}, act ? "Edit" : "Add"));
+  if (act) {
+    toggle.appendChild(el("button", {className: "btn ghost danger", type: "button", onClick: async () => {
+      if (!confirm("Remove " + entry.label + "? Its saved credentials are deleted.")) return;
+      try {
+        await api("/api/connectors/" + encodeURIComponent(entry.type), {method: "DELETE"});
+        toast(entry.label + " removed", "ok");
+        await loadConnectors();
+      } catch (err) { if (!(err instanceof AuthError)) toast(errText(err), "bad"); }
+    }}, "Remove"));
+  }
+  card.append(toggle, form);
+  return card;
+}
+
+/* ---------- connections: webhooks ---------- */
+
+async function loadHooks() {
+  const box = document.getElementById("hooks");
+  let hooks;
+  try {
+    hooks = (await api("/api/webhooks")).webhooks;
+  } catch (e) {
+    if (!(e instanceof AuthError)) box.innerHTML = '<p class="empty">' + esc(errText(e)) + "</p>";
+    return;
+  }
+  box.innerHTML = "";
+  if (!hooks.length) box.appendChild(el("p", {className: "empty"}, "No webhooks yet."));
+  for (const h of hooks) box.appendChild(hookRow(h));
+
+  const name = el("input", {type: "text", placeholder: "Name, e.g. shortcuts", autocomplete: "off"});
+  const add = el("button", {className: "btn", type: "submit"}, "Add webhook");
+  const form = el("form", {className: "row add"}, name, add);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!name.value.trim()) return;
+    try {
+      await api("/api/webhooks", {method: "POST", body: JSON.stringify({name: name.value})});
+      setPending(true);
+      toast("Webhook added — press Apply changes to activate it", "ok");
+      loadHooks();
+    } catch (err) { if (!(err instanceof AuthError)) toast(errText(err), "bad"); }
+  });
+  box.appendChild(form);
+}
+
+function hookRow(h) {
+  const url = publicCoreUrl + "/webhook/" + h.token;
+  const masked = publicCoreUrl + "/webhook/" + h.token.slice(0, 4) + "••••••";
+  const urlEl = el("span", {className: "url"}, h.from_env ? "token comes from the environment" : masked);
+  const row = el("div", {className: "row"}, el("span", {className: "name"}, h.name), urlEl);
+  if (!h.from_env) {
+    let shown = false;
+    row.appendChild(el("button", {className: "btn small", type: "button", onClick: async () => {
+      try { await navigator.clipboard.writeText(url); toast("URL copied", "ok"); }
+      catch { urlEl.textContent = url; }
+    }}, "Copy URL"));
+    row.appendChild(el("button", {className: "btn small ghost", type: "button", onClick: (e) => {
+      shown = !shown; urlEl.textContent = shown ? url : masked; e.target.textContent = shown ? "Hide" : "Show";
+    }}, "Show"));
+  }
+  row.appendChild(el("button", {className: "btn small ghost danger", type: "button", onClick: async () => {
+    if (!confirm("Delete webhook " + h.name + "? Tools using its URL stop working.")) return;
+    try {
+      await api("/api/webhooks/" + encodeURIComponent(h.name), {method: "DELETE"});
+      setPending(true);
+      toast("Webhook deleted — press Apply changes", "ok");
+      loadHooks();
+    } catch (err) { if (!(err instanceof AuthError)) toast(errText(err), "bad"); }
+  }}, "Delete"));
+  return row;
+}
+
+/* ---------- advanced: file editor ---------- */
+
+let current = null;
+let kind = null;          // core | handler | route
+let mode = "form";        // form | raw
+let model = null;
+let parseError = null;
+let knownKeys = new Set();
+
+function setStatus(msg, cls) {
+  const s = document.getElementById("status");
+  s.textContent = msg || "";
+  s.className = cls || "";
 }
 
 function detectKind(path) {
@@ -224,25 +558,12 @@ function detectKind(path) {
 
 async function setMode(next) {
   if (mode === "form" && next === "raw") {
-    try {
-      syncFormToModel();
-      await syncModelToRaw();
-      parseError = null;
-    } catch (e) {
-      setStatus(String(e.message || e), "bad");
-      return;
-    }
+    try { syncFormToModel(); await syncModelToRaw(); parseError = null; }
+    catch (e) { setStatus(errText(e), "bad"); return; }
   }
   if (mode === "raw" && next === "form") {
-    try {
-      await syncRawToModel();
-      parseError = null;
-      renderForm();
-    } catch (e) {
-      parseError = String(e.message || e);
-      setStatus("Raw invalid — fix in Raw tab: " + parseError, "bad");
-      next = "raw";
-    }
+    try { await syncRawToModel(); parseError = null; renderForm(); }
+    catch (e) { parseError = errText(e); setStatus("Raw invalid — fix it first: " + parseError, "bad"); next = "raw"; }
   }
   mode = next;
   document.getElementById("tab-form").classList.toggle("active", mode === "form");
@@ -255,20 +576,24 @@ async function setMode(next) {
 document.getElementById("tab-form").onclick = () => { setMode("form"); };
 document.getElementById("tab-raw").onclick = () => { setMode("raw"); };
 
+const GROUPS = {core: "Settings", handler: "Handlers", route: "Routes"};
+
 async function loadList() {
   const nav = document.getElementById("files");
-  nav.innerHTML = "";
   try {
-    const data = await api("/api/files", {headers: headers()});
+    const data = await api("/api/files");
+    nav.innerHTML = "";
+    let last = null;
     for (const f of data.files) {
-      const b = document.createElement("button");
-      b.innerHTML = '<span class="kind">' + f.kind + "</span>" + f.path;
+      if (f.kind !== last) { nav.appendChild(el("div", {className: "group"}, GROUPS[f.kind] || f.kind)); last = f.kind; }
+      const label = f.path.replace(/^(handlers|routes)\//, "");
+      const b = el("button", {type: "button", "data-path": f.path}, label);
       if (f.path === current) b.classList.add("active");
       b.onclick = () => openFile(f.path);
       nav.appendChild(b);
     }
   } catch (e) {
-    setStatus(String(e.message || e), "bad");
+    if (!(e instanceof AuthError)) setStatus(errText(e), "bad");
   }
 }
 
@@ -276,11 +601,9 @@ async function openFile(path) {
   current = path;
   kind = detectKind(path);
   document.getElementById("cur-path").textContent = path;
-  document.querySelectorAll("#files button").forEach(b => {
-    b.classList.toggle("active", b.textContent.includes(path));
-  });
+  document.querySelectorAll("#files button").forEach(b => b.classList.toggle("active", b.dataset.path === path));
   try {
-    const data = await api("/api/files/" + encodeURI(path), {headers: headers()});
+    const data = await api("/api/files/" + encodeURI(path));
     const ed = document.getElementById("editor");
     ed.value = data.content;
     ed.disabled = false;
@@ -288,69 +611,37 @@ async function openFile(path) {
     document.getElementById("btn-validate").disabled = false;
     parseError = null;
     try {
-      const parsed = await api("/api/parse/" + encodeURI(path), {
-        method: "POST", headers: headers(),
-        body: JSON.stringify({content: data.content}),
-      });
+      const parsed = await api("/api/parse/" + encodeURI(path), {method: "POST", body: JSON.stringify({content: data.content})});
       model = parsed.data;
       kind = parsed.kind;
       renderForm();
       mode = "raw";
       await setMode("form");
-      setStatus("loaded", "ok");
+      setStatus("");
     } catch (e) {
       model = null;
       document.getElementById("form").innerHTML =
-        '<p class="empty">Parse failed — use Raw to repair.<br><code>' +
-        esc(String(e.message || e)) + "</code></p>";
+        '<p class="empty">Could not read this file as a form — use Raw to repair.<br><code>' + esc(errText(e)) + "</code></p>";
       mode = "form";
       await setMode("raw");
-      setStatus("loaded (raw only): " + (e.message || e), "bad");
+      setStatus("raw only: " + errText(e), "bad");
     }
-    loadList();
   } catch (e) {
-    setStatus(String(e.message || e), "bad");
+    if (!(e instanceof AuthError)) setStatus(errText(e), "bad");
   }
 }
 
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  })[c]);
-}
-
-function el(tag, attrs, ...kids) {
-  const n = document.createElement(tag);
-  if (attrs) for (const [k, v] of Object.entries(attrs)) {
-    if (k === "className") n.className = v;
-    else if (k === "text") n.textContent = v;
-    else if (k === "checked") n.checked = !!v;
-    else if (k === "value") n.value = v == null ? "" : v;
-    else if (k.startsWith("on") && typeof v === "function") n.addEventListener(k.slice(2).toLowerCase(), v);
-    else if (v !== undefined && v !== null) n.setAttribute(k, v);
-  }
-  for (const c of kids) {
-    if (c == null) continue;
-    n.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
-  }
-  return n;
-}
-
-function field(label, input) {
-  return el("div", {className: "field"}, el("label", {text: label}), input);
-}
-
+function field(label, input) { return el("div", {className: "field"}, el("label", {text: label}), input); }
+function wide(label, input) { return el("div", {className: "field wide"}, el("label", {text: label}), input); }
 function textInput(value, attrs) {
   return el("input", Object.assign({type: "text", value: value == null ? "" : String(value)}, attrs || {}));
 }
-
 function numInput(value, attrs) {
   const v = value == null || value === "" ? "" : String(value);
   return el("input", Object.assign({type: "number", value: v, step: "any"}, attrs || {}));
 }
-
-function selectInput(value, options) {
-  const s = el("select", {});
+function selectInput(value, options, id) {
+  const s = el("select", {id});
   for (const opt of options) {
     const o = el("option", {value: opt, text: opt});
     if (opt === value) o.selected = true;
@@ -358,146 +649,86 @@ function selectInput(value, options) {
   }
   return s;
 }
-
 function check(label, checked) {
   const id = "chk-" + label.replace(/\W+/g, "-");
-  return el("label", {},
-    el("input", {type: "checkbox", id, checked: !!checked}),
-    " " + label
-  );
+  return el("label", {}, el("input", {type: "checkbox", id, checked: !!checked}), " " + label);
 }
+function section(title, ...kids) { return el("div", {className: "section"}, el("h3", {text: title}), ...kids); }
 
 function renderForm() {
   const root = document.getElementById("form");
   root.innerHTML = "";
   knownKeys = new Set();
-  if (!current || model == null) {
-    root.innerHTML = '<p class="empty">Select a file…</p>';
-    return;
-  }
+  if (!current || model == null) { root.innerHTML = '<p class="empty">Select a file on the left.</p>'; return; }
   if (kind === "handler") root.appendChild(renderHandlerForm(model));
   else if (kind === "route") root.appendChild(renderRoutesForm(model));
   else if (kind === "core") root.appendChild(renderCoreForm(model));
   else root.innerHTML = '<p class="empty">No form for this file — use Raw.</p>';
 }
 
-/* ---------- Handler ---------- */
+/* handler */
 
-const HANDLER_BOOLS = [
-  "required", "await_response", "allow_direct_inject",
-  "continue_on_match", "receive_handler_context",
-];
+const HANDLER_BOOLS = ["required", "await_response", "allow_direct_inject", "continue_on_match", "receive_handler_context"];
 
 function renderHandlerForm(data) {
   const wrap = el("div", {});
-  const mark = (...keys) => keys.forEach(k => knownKeys.add(k));
+  ["id", "priority", "direction", "type", "lifecycle", "exec", "timeout_seconds", "router_hint", "match", "env",
+   "category", "args", "shared_process", "context", "startup", ...HANDLER_BOOLS].forEach(k => knownKeys.add(k));
 
-  mark("id", "priority", "direction", "type", "lifecycle", "exec", "timeout_seconds",
-       "router_hint", "match", "env", "category", "args", "shared_process",
-       "context", "startup", ...HANDLER_BOOLS);
-
-  const basics = el("div", {className: "section"}, el("h2", {text: "Basics"}));
-  const grid = el("div", {className: "grid"});
-  const id = textInput(data.id, {id: "h-id"});
-  const priority = numInput(data.priority, {id: "h-priority"});
-  const direction = selectInput(data.direction || "inbound", ["inbound", "outbound", "source"]);
-  direction.id = "h-direction";
-  const type = selectInput(data.type || "exec_json", ["exec_json", "http"]);
-  type.id = "h-type";
-  const lifecycle = selectInput(data.lifecycle || "per_message", ["per_message", "persistent"]);
-  lifecycle.id = "h-lifecycle";
-  const exec = textInput(data.exec, {id: "h-exec"});
-  const timeout = numInput(data.timeout_seconds, {id: "h-timeout"});
-  grid.append(
-    field("id", id),
-    field("priority", priority),
-    field("direction", direction),
-    field("type", type),
-    field("lifecycle", lifecycle),
-    field("timeout_seconds", timeout),
-    el("div", {className: "field wide"}, el("label", {text: "exec"}), exec),
-  );
-  basics.appendChild(grid);
-  wrap.appendChild(basics);
+  wrap.appendChild(section("Basics", el("div", {className: "grid"},
+    field("id", textInput(data.id, {id: "h-id"})),
+    field("priority", numInput(data.priority, {id: "h-priority"})),
+    field("direction", selectInput(data.direction || "inbound", ["inbound", "outbound", "source"], "h-direction")),
+    field("type", selectInput(data.type || "exec_json", ["exec_json", "http"], "h-type")),
+    field("lifecycle", selectInput(data.lifecycle || "per_message", ["per_message", "persistent"], "h-lifecycle")),
+    field("timeout_seconds", numInput(data.timeout_seconds, {id: "h-timeout"})),
+    wide("exec", textInput(data.exec, {id: "h-exec"})),
+  )));
 
   const match = data.match || {};
-  const matchSec = el("div", {className: "section"}, el("h2", {text: "Match"}));
-  const mgrid = el("div", {className: "grid"});
-  const regex = textInput(match.regex, {id: "h-regex"});
-  const sources = textInput((match.source || []).join(", "), {id: "h-sources", placeholder: "telegram, webhook:voice"});
-  mgrid.append(
-    el("div", {className: "field wide"}, el("label", {text: "regex"}), regex),
-    el("div", {className: "field wide"}, el("label", {text: "source (comma-separated)"}), sources),
-  );
-  matchSec.appendChild(mgrid);
-  wrap.appendChild(matchSec);
+  wrap.appendChild(section("Match", el("div", {className: "grid"},
+    wide("regex", textInput(match.regex, {id: "h-regex"})),
+    wide("source (comma-separated)", textInput((match.source || []).join(", "), {id: "h-sources", placeholder: "telegram, webhook:voice"})),
+  )));
 
-  const flags = el("div", {className: "section"}, el("h2", {text: "Flags"}));
   const checks = el("div", {className: "field checks"});
-  for (const b of HANDLER_BOOLS) {
-    checks.appendChild(check(b, !!data[b]));
-  }
-  flags.appendChild(checks);
-  wrap.appendChild(flags);
+  for (const b of HANDLER_BOOLS) checks.appendChild(check(b, !!data[b]));
+  wrap.appendChild(section("Flags", checks));
 
-  const hintSec = el("div", {className: "section"}, el("h2", {text: "Router"}));
   const hint = el("textarea", {id: "h-hint"});
   hint.value = data.router_hint || "";
-  hintSec.appendChild(field("router_hint", hint));
-  wrap.appendChild(hintSec);
+  wrap.appendChild(section("Router", field("router_hint", hint)));
 
-  const envSec = el("div", {className: "section"}, el("h2", {text: "env"}));
   const envBox = el("div", {className: "kv", id: "h-env"});
-  const env = data.env && typeof data.env === "object" ? data.env : {};
-  const envEntries = Object.entries(env);
+  const envEntries = Object.entries(data.env && typeof data.env === "object" ? data.env : {});
   if (!envEntries.length) envBox.appendChild(el("p", {className: "empty", text: "No env vars"}));
   for (const [k, v] of envEntries) envBox.appendChild(kvRow(k, v));
-  envSec.append(
-    envBox,
-    el("button", {type: "button", className: "act small", text: "+ env", onClick: () => {
-      if (envBox.querySelector(".empty")) envBox.innerHTML = "";
-      envBox.appendChild(kvRow("", ""));
-    }}),
-  );
-  wrap.appendChild(envSec);
+  wrap.appendChild(section("env", envBox, el("button", {type: "button", className: "btn small", text: "+ env", onClick: () => {
+    if (envBox.querySelector(".empty")) envBox.innerHTML = "";
+    envBox.appendChild(kvRow("", ""));
+  }})));
 
-  const adv = el("details", {className: "advanced section"});
-  adv.appendChild(el("summary", {text: "Advanced (category, context, startup, …)"}));
-  const ag = el("div", {className: "grid"});
-  const category = textInput((data.category || []).join(", "), {id: "h-category"});
-  const args = textInput((data.args || []).join(", "), {id: "h-args"});
-  const shared = textInput(data.shared_process, {id: "h-shared"});
   const ctx = data.context || {};
-  const ctxNs = textInput(ctx.namespace, {id: "h-ctx-ns"});
-  const ctxKey = textInput(ctx.key, {id: "h-ctx-key"});
   const st = data.startup || {};
-  const stUrl = textInput(st.url, {id: "h-st-url"});
-  const stPath = textInput(st.invoke_path, {id: "h-st-path"});
-  const stPol = selectInput(st.restart_policy || "", ["", "always", "on_failure", "never"]);
-  stPol.id = "h-st-pol";
-  ag.append(
-    el("div", {className: "field wide"}, el("label", {text: "category (comma-separated)"}), category),
-    el("div", {className: "field wide"}, el("label", {text: "args (comma-separated)"}), args),
-    field("shared_process", shared),
-    field("context.namespace", ctxNs),
-    field("context.key", ctxKey),
-    field("startup.url", stUrl),
-    field("startup.invoke_path", stPath),
-    field("startup.restart_policy", stPol),
-  );
-  adv.appendChild(ag);
+  const adv = el("details", {className: "advanced section"}, el("summary", {text: "More (category, context, startup, …)"}));
+  adv.appendChild(el("div", {className: "grid"},
+    wide("category (comma-separated)", textInput((data.category || []).join(", "), {id: "h-category"})),
+    wide("args (comma-separated)", textInput((data.args || []).join(", "), {id: "h-args"})),
+    field("shared_process", textInput(data.shared_process, {id: "h-shared"})),
+    field("context.namespace", textInput(ctx.namespace, {id: "h-ctx-ns"})),
+    field("context.key", textInput(ctx.key, {id: "h-ctx-key"})),
+    field("startup.url", textInput(st.url, {id: "h-st-url"})),
+    field("startup.invoke_path", textInput(st.invoke_path, {id: "h-st-path"})),
+    field("startup.restart_policy", selectInput(st.restart_policy || "", ["", "always", "on_failure", "never"], "h-st-pol")),
+  ));
   wrap.appendChild(adv);
-
   return wrap;
 }
 
 function kvRow(k, v) {
   const row = el("div", {className: "kv-row"});
-  row.append(
-    textInput(k, {placeholder: "KEY"}),
-    textInput(v, {placeholder: "value"}),
-    el("button", {type: "button", className: "act small", text: "×", onClick: () => row.remove()}),
-  );
+  row.append(textInput(k, {placeholder: "KEY"}), textInput(v, {placeholder: "value"}),
+    el("button", {type: "button", className: "btn small", text: "×", onClick: () => row.remove()}));
   return row;
 }
 
@@ -506,204 +737,140 @@ function readKv(box) {
   box.querySelectorAll(".kv-row").forEach(row => {
     const inputs = row.querySelectorAll("input");
     const k = inputs[0].value.trim();
-    if (!k) return;
-    out[k] = inputs[1].value;
+    if (k) out[k] = inputs[1].value;
   });
   return out;
 }
 
-function splitList(s) {
-  return String(s || "").split(",").map(x => x.trim()).filter(Boolean);
-}
+function splitList(s) { return String(s || "").split(",").map(x => x.trim()).filter(Boolean); }
+const val = id => document.getElementById(id).value;
 
 function syncHandlerFormToModel() {
   const next = Object.assign({}, model);
-  // drop known keys then re-apply from form (preserve unknown)
   for (const k of knownKeys) delete next[k];
-
-  next.id = document.getElementById("h-id").value.trim();
-  const pr = document.getElementById("h-priority").value;
-  if (pr !== "") next.priority = Number(pr);
-  next.direction = document.getElementById("h-direction").value;
-  next.type = document.getElementById("h-type").value;
-  next.lifecycle = document.getElementById("h-lifecycle").value;
-  const exec = document.getElementById("h-exec").value.trim();
-  if (exec) next.exec = exec;
-  const to = document.getElementById("h-timeout").value;
-  if (to !== "") next.timeout_seconds = Number(to);
-
-  const regex = document.getElementById("h-regex").value;
-  const sources = splitList(document.getElementById("h-sources").value);
+  next.id = val("h-id").trim();
+  if (val("h-priority") !== "") next.priority = Number(val("h-priority"));
+  next.direction = val("h-direction");
+  next.type = val("h-type");
+  next.lifecycle = val("h-lifecycle");
+  if (val("h-exec").trim()) next.exec = val("h-exec").trim();
+  if (val("h-timeout") !== "") next.timeout_seconds = Number(val("h-timeout"));
+  const regex = val("h-regex");
+  const sources = splitList(val("h-sources"));
   if (regex || sources.length) {
     next.match = {};
     if (regex) next.match.regex = regex;
     if (sources.length) next.match.source = sources;
   }
-
   for (const b of HANDLER_BOOLS) {
     const box = document.getElementById("chk-" + b.replace(/\W+/g, "-"));
     if (box) next[b] = box.checked;
   }
-
-  const hint = document.getElementById("h-hint").value;
-  if (hint.trim()) next.router_hint = hint;
-
+  if (val("h-hint").trim()) next.router_hint = val("h-hint");
   const env = readKv(document.getElementById("h-env"));
   if (Object.keys(env).length) next.env = env;
-
-  const cat = splitList(document.getElementById("h-category").value);
+  const cat = splitList(val("h-category"));
   if (cat.length) next.category = cat;
-  const args = splitList(document.getElementById("h-args").value);
+  const args = splitList(val("h-args"));
   if (args.length) next.args = args;
-  const shared = document.getElementById("h-shared").value.trim();
-  if (shared) next.shared_process = shared;
-
-  const ns = document.getElementById("h-ctx-ns").value.trim();
-  const key = document.getElementById("h-ctx-key").value.trim();
-  if (ns || key) {
-    next.context = {};
-    if (ns) next.context.namespace = ns;
-    if (key) next.context.key = key;
-  }
-
-  const url = document.getElementById("h-st-url").value.trim();
-  const path = document.getElementById("h-st-path").value.trim();
-  const pol = document.getElementById("h-st-pol").value;
+  if (val("h-shared").trim()) next.shared_process = val("h-shared").trim();
+  const ns = val("h-ctx-ns").trim(), key = val("h-ctx-key").trim();
+  if (ns || key) { next.context = {}; if (ns) next.context.namespace = ns; if (key) next.context.key = key; }
+  const url = val("h-st-url").trim(), path = val("h-st-path").trim(), pol = val("h-st-pol");
   if (url || path || pol) {
     next.startup = {};
     if (url) next.startup.url = url;
     if (path) next.startup.invoke_path = path;
     if (pol) next.startup.restart_policy = pol;
   }
-
   model = next;
 }
 
-/* ---------- Routes ---------- */
+/* routes */
 
 function renderRoutesForm(data) {
-  knownKeys = new Set(); // whole array is owned
-  const wrap = el("div", {});
-  const sec = el("div", {className: "section"}, el("h2", {text: "Routes"}));
+  knownKeys = new Set();
   const list = el("div", {className: "route-list", id: "r-list"});
   const rows = Array.isArray(data) ? data : [];
   if (!rows.length) list.appendChild(el("p", {className: "empty", text: "No routes"}));
   for (const r of rows) list.appendChild(routeRow(r.pattern || "", r.inject || ""));
-  sec.append(
-    list,
-    el("button", {type: "button", className: "act small", text: "+ route", onClick: () => {
-      if (list.querySelector(".empty")) list.innerHTML = "";
-      list.appendChild(routeRow("", ""));
-    }}),
-  );
-  wrap.appendChild(sec);
-  return wrap;
+  return section("Routes", list, el("button", {type: "button", className: "btn small", text: "+ route", onClick: () => {
+    if (list.querySelector(".empty")) list.innerHTML = "";
+    list.appendChild(routeRow("", ""));
+  }}));
 }
 
 function routeRow(pattern, inject) {
   const row = el("div", {className: "route-row"});
-  row.append(
-    textInput(pattern, {placeholder: "pattern (regex)"}),
-    textInput(inject, {placeholder: "inject template"}),
-    el("button", {type: "button", className: "act small", text: "×", onClick: () => row.remove()}),
-  );
+  row.append(textInput(pattern, {placeholder: "pattern (regex)"}), textInput(inject, {placeholder: "inject template"}),
+    el("button", {type: "button", className: "btn small", text: "×", onClick: () => row.remove()}));
   return row;
 }
 
 function syncRoutesFormToModel() {
-  const list = document.getElementById("r-list");
   const out = [];
-  list.querySelectorAll(".route-row").forEach(row => {
+  document.getElementById("r-list").querySelectorAll(".route-row").forEach(row => {
     const inputs = row.querySelectorAll("input");
-    const pattern = inputs[0].value;
-    const inject = inputs[1].value;
-    if (!pattern && !inject) return;
-    out.push({pattern, inject});
+    if (inputs[0].value || inputs[1].value) out.push({pattern: inputs[0].value, inject: inputs[1].value});
   });
   model = out;
 }
 
-/* ---------- Core ---------- */
+/* core.yaml */
 
 function renderCoreForm(data) {
-  knownKeys = new Set([
-    "port", "log_level", "db_path", "max_inject_depth", "log_buffer_size",
-    "auth_token", "webhook_token", "upload_dir", "runtime", "webhooks",
-  ]);
+  knownKeys = new Set(["port", "log_level", "db_path", "max_inject_depth", "log_buffer_size",
+                       "auth_token", "webhook_token", "upload_dir", "runtime", "webhooks"]);
   const wrap = el("div", {});
-  const basics = el("div", {className: "section"}, el("h2", {text: "Core"}));
-  const grid = el("div", {className: "grid"});
-  grid.append(
-    field("port", numInput(data.port, {id: "c-port"})),
-    field("log_level", (() => {
-      const s = selectInput(data.log_level || "INFO", ["DEBUG", "INFO", "WARNING", "ERROR"]);
-      s.id = "c-log";
-      return s;
-    })()),
+  wrap.appendChild(section("General", el("div", {className: "grid"},
+    field("log_level", selectInput(data.log_level || "INFO", ["DEBUG", "INFO", "WARNING", "ERROR"], "c-log")),
     field("max_inject_depth", numInput(data.max_inject_depth, {id: "c-depth"})),
-    field("log_buffer_size", numInput(data.log_buffer_size, {id: "c-buf"})),
-    el("div", {className: "field wide"}, el("label", {text: "db_path"}), textInput(data.db_path, {id: "c-db"})),
-    el("div", {className: "field wide"}, el("label", {text: "upload_dir"}), textInput(data.upload_dir, {id: "c-upload"})),
-    field("runtime", textInput(data.runtime, {id: "c-runtime", placeholder: "docker | kubernetes | none"})),
-  );
-  basics.appendChild(grid);
-  wrap.appendChild(basics);
+  )));
 
-  const secrets = el("div", {className: "section"}, el("h2", {text: "Tokens (optional — prefer env)"}));
-  const sg = el("div", {className: "grid"});
-  sg.append(
-    el("div", {className: "field wide"}, el("label", {text: "auth_token"}), textInput(data.auth_token, {id: "c-auth"})),
-    el("div", {className: "field wide"}, el("label", {text: "webhook_token"}), textInput(data.webhook_token, {id: "c-wh"})),
-  );
-  secrets.appendChild(sg);
-  wrap.appendChild(secrets);
-
-  const whSec = el("div", {className: "section"}, el("h2", {text: "webhooks (name → token)"}));
   const whBox = el("div", {className: "kv", id: "c-webhooks"});
-  const wh = data.webhooks && typeof data.webhooks === "object" ? data.webhooks : {};
-  const whEntries = Object.entries(wh);
+  const whEntries = Object.entries(data.webhooks && typeof data.webhooks === "object" ? data.webhooks : {});
   if (!whEntries.length) whBox.appendChild(el("p", {className: "empty", text: "No named webhooks"}));
   for (const [k, v] of whEntries) whBox.appendChild(kvRow(k, v));
-  whSec.append(
+  wrap.appendChild(section("Webhooks (name → token)",
+    el("p", {className: "note"}, "Easier under Connections → Webhooks."),
     whBox,
-    el("button", {type: "button", className: "act small", text: "+ webhook", onClick: () => {
+    el("button", {type: "button", className: "btn small", text: "+ webhook", onClick: () => {
       if (whBox.querySelector(".empty")) whBox.innerHTML = "";
       whBox.appendChild(kvRow("", ""));
-    }}),
-  );
-  wrap.appendChild(whSec);
+    }})));
+
+  const sys = el("details", {className: "advanced section"}, el("summary", {text: "System (applied only after a restart of sijba)"}));
+  sys.appendChild(el("div", {className: "grid"},
+    field("port", numInput(data.port, {id: "c-port"})),
+    field("log_buffer_size", numInput(data.log_buffer_size, {id: "c-buf"})),
+    field("runtime", textInput(data.runtime, {id: "c-runtime", placeholder: "docker | kubernetes | none"})),
+    wide("db_path", textInput(data.db_path, {id: "c-db"})),
+    wide("upload_dir", textInput(data.upload_dir, {id: "c-upload"})),
+    wide("auth_token (prefer env)", textInput(data.auth_token, {id: "c-auth", type: "password", autocomplete: "off"})),
+    wide("webhook_token (legacy, prefer named webhooks)", textInput(data.webhook_token, {id: "c-wh", type: "password", autocomplete: "off"})),
+  ));
+  wrap.appendChild(sys);
   return wrap;
 }
 
 function syncCoreFormToModel() {
   const next = Object.assign({}, model);
   for (const k of knownKeys) delete next[k];
-
-  const port = document.getElementById("c-port").value;
-  if (port !== "") next.port = Number(port);
-  next.log_level = document.getElementById("c-log").value;
-  const depth = document.getElementById("c-depth").value;
-  if (depth !== "") next.max_inject_depth = Number(depth);
-  const buf = document.getElementById("c-buf").value;
-  if (buf !== "") next.log_buffer_size = Number(buf);
-  const db = document.getElementById("c-db").value.trim();
-  if (db) next.db_path = db;
-  const upload = document.getElementById("c-upload").value.trim();
-  if (upload) next.upload_dir = upload;
-  const runtime = document.getElementById("c-runtime").value.trim();
-  if (runtime) next.runtime = runtime;
-  const auth = document.getElementById("c-auth").value;
-  if (auth) next.auth_token = auth;
-  const wh = document.getElementById("c-wh").value;
-  if (wh) next.webhook_token = wh;
-
+  if (val("c-port") !== "") next.port = Number(val("c-port"));
+  next.log_level = val("c-log");
+  if (val("c-depth") !== "") next.max_inject_depth = Number(val("c-depth"));
+  if (val("c-buf") !== "") next.log_buffer_size = Number(val("c-buf"));
+  if (val("c-db").trim()) next.db_path = val("c-db").trim();
+  if (val("c-upload").trim()) next.upload_dir = val("c-upload").trim();
+  if (val("c-runtime").trim()) next.runtime = val("c-runtime").trim();
+  if (val("c-auth")) next.auth_token = val("c-auth");
+  if (val("c-wh")) next.webhook_token = val("c-wh");
   const webhooks = readKv(document.getElementById("c-webhooks"));
   if (Object.keys(webhooks).length) next.webhooks = webhooks;
-
   model = next;
 }
 
-/* ---------- Sync ---------- */
+/* sync + save */
 
 function syncFormToModel() {
   if (model == null && kind !== "route") throw new Error("nothing to sync");
@@ -714,178 +881,54 @@ function syncFormToModel() {
 
 async function syncModelToRaw() {
   if (!current) return;
-  const res = await api("/api/serialize/" + encodeURI(current), {
-    method: "POST", headers: headers(),
-    body: JSON.stringify({data: model}),
-  });
+  const res = await api("/api/serialize/" + encodeURI(current), {method: "POST", body: JSON.stringify({data: model})});
   document.getElementById("editor").value = res.content;
 }
 
 async function syncRawToModel() {
   if (!current) return;
-  const content = document.getElementById("editor").value;
-  const parsed = await api("/api/parse/" + encodeURI(current), {
-    method: "POST", headers: headers(),
-    body: JSON.stringify({content}),
-  });
+  const parsed = await api("/api/parse/" + encodeURI(current), {method: "POST", body: JSON.stringify({content: val("editor")})});
   model = parsed.data;
   kind = parsed.kind;
 }
 
 async function currentContent() {
-  if (mode === "form") {
-    syncFormToModel();
-    await syncModelToRaw();
-  }
-  return document.getElementById("editor").value;
+  if (mode === "form") { syncFormToModel(); await syncModelToRaw(); }
+  return val("editor");
 }
 
 document.getElementById("btn-validate").onclick = async () => {
   if (!current) return;
   try {
     const content = await currentContent();
-    const report = await api("/api/validate/" + encodeURI(current), {
-      method: "POST", headers: headers(),
-      body: JSON.stringify({content}),
-    });
-    if (report.ok) setStatus("valid (" + report.kind + ")", "ok");
+    const report = await api("/api/validate/" + encodeURI(current), {method: "POST", body: JSON.stringify({content})});
+    if (report.ok) setStatus("Valid", "ok");
     else setStatus(report.errors.join("; "), "bad");
-  } catch (e) {
-    setStatus(String(e.message || e), "bad");
-  }
+  } catch (e) { if (!(e instanceof AuthError)) setStatus(errText(e), "bad"); }
 };
 
 document.getElementById("btn-save").onclick = async () => {
   if (!current) return;
   try {
     const content = await currentContent();
-    const res = await api("/api/files/" + encodeURI(current), {
-      method: "PUT", headers: headers(),
-      body: JSON.stringify({content, backup: true}),
-    });
-    setStatus("saved · " + res.bytes + " bytes · restart core to apply", "ok");
-  } catch (e) {
-    setStatus(String(e.message || e), "bad");
-  }
+    await api("/api/files/" + encodeURI(current), {method: "PUT", body: JSON.stringify({content, backup: true})});
+    setStatus("Saved", "ok");
+    setPending(true);
+    toast("Saved — press Apply changes to use it", "ok");
+  } catch (e) { if (!(e instanceof AuthError)) setStatus(errText(e), "bad"); }
 };
 
 document.getElementById("editor").addEventListener("keydown", (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-    e.preventDefault();
-    document.getElementById("btn-save").click();
-  }
+  if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); document.getElementById("btn-save").click(); }
 });
 
-// ---- connectors (only when the server has a provisioner configured) ----
-const connectorsEnabled = "__CONNECTORS__" === "1";
-let connTimer = null;
+/* ---------- boot ---------- */
 
-function showView(name) {
-  const conn = name === "connectors";
-  document.querySelector("main").style.display = conn ? "none" : "";
-  document.getElementById("connectors-view").classList.toggle("on", conn);
-  document.getElementById("view-files").classList.toggle("active", !conn);
-  document.getElementById("view-connectors-btn").classList.toggle("active", conn);
-  clearTimeout(connTimer);
-  if (conn) loadConnectors();
-}
-
-if (connectorsEnabled) {
-  document.getElementById("view-tabs").classList.add("on");
-  document.getElementById("view-files").onclick = () => showView("files");
-  document.getElementById("view-connectors-btn").onclick = () => showView("connectors");
-}
-
-async function loadConnectors() {
-  const cards = document.getElementById("cards");
-  let catalog, active;
-  try {
-    catalog = (await api("/api/connectors/catalog", {headers: headers()})).catalog;
-    active = (await api("/api/connectors", {headers: headers()})).connectors;
-  } catch (e) {
-    cards.innerHTML = '<p class="empty">' + esc(String(e.message || e)) + "</p>";
-    return;
-  }
-  const byType = Object.fromEntries(active.map(c => [c.type, c]));
-  // do not clobber a card the user is typing in
-  const typing = cards.contains(document.activeElement) && document.activeElement.tagName === "INPUT";
-  if (!typing) {
-    cards.innerHTML = "";
-    for (const entry of catalog) cards.appendChild(renderConnector(entry, byType[entry.type]));
-  }
-  if (active.some(c => c.phase !== "ok")) {
-    clearTimeout(connTimer);
-    connTimer = setTimeout(loadConnectors, 5000);
-  }
-}
-
-function renderConnector(entry, act) {
-  const card = el("div", {className: "card"});
-  const title = el("h3", null, entry.label);
-  if (act) title.appendChild(el("span", {className: "badge " + act.phase}, act.status));
-  card.appendChild(title);
-  card.appendChild(el("p", {className: "desc"}, entry.description || ""));
-  if (act && act.detail) {
-    card.appendChild(el("p", {className: "detail" + (act.phase === "error" ? " bad" : "")}, act.detail));
-  }
-
-  const fieldsBox = el("div", {className: "fields"});
-  const inputs = {};
-  for (const f of entry.fields) {
-    const cur = act ? act.fields[f.name] : null;
-    const input = el("input", {
-      type: f.secret ? "password" : "text",
-      autocomplete: "off",
-      placeholder: f.secret && cur && cur.set ? "set — leave empty to keep"
-        : (f.default || ""),
-    });
-    if (!f.secret) input.value = cur && cur.value ? cur.value : (act ? "" : (f.default || ""));
-    inputs[f.name] = input;
-    const wrap = el("div", {className: "field"},
-      el("label", null, f.label + (f.required ? " *" : "")), input);
-    if (f.help) wrap.appendChild(el("span", {className: "help"}, f.help));
-    fieldsBox.appendChild(wrap);
-  }
-  card.appendChild(fieldsBox);
-
-  const msg = el("span", {className: "msg"});
-  const save = el("button", {className: "act primary", type: "button"}, act ? "Save" : "Activate");
-  save.onclick = async () => {
-    const fields = {};
-    for (const [name, input] of Object.entries(inputs)) fields[name] = input.value;
-    save.disabled = true; msg.className = "msg"; msg.textContent = "working…";
-    try {
-      await api("/api/connectors/" + encodeURIComponent(entry.type), {
-        method: "PUT", headers: headers(), body: JSON.stringify({fields}),
-      });
-      await loadConnectors();
-    } catch (e) {
-      msg.className = "msg bad"; msg.textContent = String(e.message || e);
-      save.disabled = false;
-    }
-  };
-  const actions = el("div", {className: "actions"}, save);
-  if (act) {
-    const del = el("button", {className: "act", type: "button"}, "Deactivate");
-    del.onclick = async () => {
-      if (!confirm("Deactivate " + entry.label + "? Its stored credentials are deleted.")) return;
-      try {
-        await api("/api/connectors/" + encodeURIComponent(entry.type), {
-          method: "DELETE", headers: headers(),
-        });
-        await loadConnectors();
-      } catch (e) {
-        msg.className = "msg bad"; msg.textContent = String(e.message || e);
-      }
-    };
-    actions.appendChild(del);
-  }
-  actions.appendChild(msg);
-  card.appendChild(actions);
-  return card;
-}
-
-loadList();
+(async () => {
+  // Also works without any token when the server has auth disabled.
+  try { await api("/api/me"); startApp(); }
+  catch (e) { if (!(e instanceof AuthError)) showLogin(errText(e)); }
+})();
 </script>
 </body>
 </html>
