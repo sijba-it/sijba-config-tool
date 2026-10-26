@@ -49,7 +49,7 @@ def prov_server():
 
 
 def load_app(monkeypatch, tmp_path, **env):
-    for k in ("PROVISIONER_URL", "PROVISIONER_TOKEN", "SIJBA_AUTH_TOKEN", "ROOT_PATH"):
+    for k in ("PROVISIONER_URL", "PROVISIONER_TOKEN", "SIJBA_AUTH_TOKEN", "ROOT_PATH", "SIJBA_CORE_URL", "PUBLIC_CORE_URL"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("SIJBA_CONFIG_DIR", str(tmp_path))
     for k, v in env.items():

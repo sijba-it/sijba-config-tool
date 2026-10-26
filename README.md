@@ -31,6 +31,8 @@ export SIJBA_CONFIG_DIR=/path/to/sijba-config
 export SIJBA_AUTH_TOKEN=secret   # optional; if set, Bearer required
 export PORT=8081
 # export ROOT_PATH=/config-ui    # only behind an ingress path prefix
+# export SIJBA_CORE_URL=http://127.0.0.1:8080   # for "Apply changes" (Core /api/admin/reload)
+# export PUBLIC_CORE_URL=https://sijba.example  # shown in webhook URLs; default: the page's origin
 
 python main.py
 ```
@@ -48,13 +50,22 @@ Open `http://localhost:8081/`.
 | `POST` | `/api/validate/{path}` | validate (`{"content":"…"}` optional) |
 | `POST` | `/api/parse/{path}` | parse → `{kind, data}` for the form |
 | `POST` | `/api/serialize/{path}` | `{data}` → `{content}` |
+| `GET` | `/api/me` | token check for the login screen |
+| `POST` | `/api/apply` | asks Core to reload its config (`POST /api/admin/reload`) |
+| `GET`/`POST` | `/api/webhooks` | list / add a named webhook (`{"name"}`, token generated) in `core.yaml` |
+| `DELETE` | `/api/webhooks/{name}` | remove it |
+
+The UI has two pages: **Connections** (connectors, webhooks) and **Advanced**
+(the file editor). Saving a file or webhook marks "Apply changes"; applying
+reloads Core without a restart and reports files it skipped and settings that
+still need a restart (`port`, `db_path`, …).
 
 If `ROOT_PATH` is set (k8s: `/config-ui`), all of the above are under that prefix.
 
 ## Connectors (optional)
 
 If `PROVISIONER_URL` **and** `PROVISIONER_TOKEN` are set, the UI shows a
-"Connectors" tab (Pushover, …): list the catalog, activate with the form,
+"Apps & services" section (Pushover, Telegram, …): list the catalog, activate with the form,
 deactivate. The tool only speaks the provisioner API
 ([sijba-provisioner-k8s](../sijba-provisioner-k8s) or a hosted one) — it never
 touches Kubernetes, and the provisioner token never reaches the browser.

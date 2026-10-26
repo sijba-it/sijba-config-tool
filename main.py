@@ -6,7 +6,12 @@ validate shape without assuming local paths in the UI.
 """
 from __future__ import annotations
 
+import json
 import os
+import re
+import secrets
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +33,9 @@ SCHEMA_PATH = Path(
     )
 )
 PORT = int(os.environ.get("PORT", "8081"))
+CORE_URL = (os.environ.get("SIJBA_CORE_URL") or "http://127.0.0.1:8080").rstrip("/")
+PUBLIC_CORE_URL = (os.environ.get("PUBLIC_CORE_URL") or "").rstrip("/")
+WEBHOOK_NAME = re.compile(r"^[a-z0-9_-]{1,32}$")
 UI_PATH = Path(__file__).parent / "static" / "index.html"
 
 backend = FsBackend(CONFIG_DIR, schema_path=SCHEMA_PATH)
@@ -119,6 +127,85 @@ def serialize_file(path: str, body: SerializeBody):
     return {"content": serialize_content(path, body.data)}
 
 
+@api.get("/api/me", dependencies=[Depends(_check_auth)])
+def me():
+    return {"ok": True, "connectors": provisioner is not None}
+
+
+@api.post("/api/apply", dependencies=[Depends(_check_auth)])
+def apply_config():
+    """Ask Core to re-read its config files (POST /api/admin/reload)."""
+    req = urllib.request.Request(
+        CORE_URL + "/api/admin/reload", data=b"{}", method="POST",
+        headers={"Content-Type": "application/json",
+                 **({"Authorization": f"Bearer {AUTH_TOKEN}"} if AUTH_TOKEN else {})})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")[:300]
+        return JSONResponse({"error": f"Core reload failed ({exc.code}): {detail}"}, status_code=502)
+    except (urllib.error.URLError, OSError) as exc:
+        return JSONResponse({"error": f"Core unreachable: {exc}"}, status_code=502)
+
+
+def _core_yaml() -> dict:
+    try:
+        content = backend.get("core.yaml")["content"]
+    except ConfigError as exc:
+        if exc.status != 404:
+            raise
+        content = ""
+    return parse_content("core.yaml", content)["data"]
+
+
+def _save_core_yaml(data: dict) -> None:
+    backend.put("core.yaml", serialize_content("core.yaml", data), backup=True)
+
+
+@api.get("/api/webhooks", dependencies=[Depends(_check_auth)])
+def webhooks_list():
+    hooks = _core_yaml().get("webhooks") or {}
+    return {"webhooks": [
+        {"name": str(n), "token": str(t), "from_env": "${" in str(t)}
+        for n, t in hooks.items()
+    ]}
+
+
+class WebhookBody(BaseModel):
+    name: str
+
+
+@api.post("/api/webhooks", dependencies=[Depends(_check_auth)])
+def webhooks_add(body: WebhookBody):
+    name = body.name.strip().lower()
+    if not WEBHOOK_NAME.match(name):
+        raise HTTPException(422, "name: lowercase letters, digits, - and _ (max 32)")
+    data = _core_yaml()
+    hooks = dict(data.get("webhooks") or {})
+    if name in hooks:
+        raise HTTPException(409, f"webhook {name!r} exists")
+    hooks[name] = secrets.token_urlsafe(24)
+    data["webhooks"] = hooks
+    _save_core_yaml(data)
+    return {"name": name, "token": hooks[name], "from_env": False}
+
+
+@api.delete("/api/webhooks/{name}", dependencies=[Depends(_check_auth)])
+def webhooks_delete(name: str):
+    data = _core_yaml()
+    hooks = dict(data.get("webhooks") or {})
+    if name not in hooks:
+        raise HTTPException(404, "not found")
+    del hooks[name]
+    if hooks:
+        data["webhooks"] = hooks
+    else:
+        data.pop("webhooks", None)
+    _save_core_yaml(data)
+    return {"ok": True}
+
+
 class ConnectorBody(BaseModel):
     fields: dict = Field(default_factory=dict)
 
@@ -161,6 +248,7 @@ def ui():
     # Inject the ingress prefix once. Do not reuse a placeholder that also
     # appears in a JS sentinel check — replace() would break `base`.
     html = html.replace("__CONNECTORS__", "1" if provisioner else "0")
+    html = html.replace("__PUBLIC_CORE_URL__", PUBLIC_CORE_URL)
     return HTMLResponse(html.replace("__BASE_PATH__", ROOT_PATH or ""))
 
 
