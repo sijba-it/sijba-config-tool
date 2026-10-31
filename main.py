@@ -19,6 +19,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
+import presets
+import routing
 from codec import parse_content, serialize_content
 from fs_backend import ConfigError, FsBackend
 from provisioner import Provisioner, ProvisionerError
@@ -204,6 +206,84 @@ def webhooks_delete(name: str):
         data.pop("webhooks", None)
     _save_core_yaml(data)
     return {"ok": True}
+
+
+def _core_get(path: str) -> Any:
+    req = urllib.request.Request(
+        CORE_URL + path,
+        headers={**({"Authorization": f"Bearer {AUTH_TOKEN}"} if AUTH_TOKEN else {})})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.loads(r.read() or b"null")
+
+
+@api.get("/api/routing", dependencies=[Depends(_check_auth)])
+def routing_overview():
+    """Everything the Routing page needs: steps in order, sources, targets, templates."""
+    steps, problems = routing.load_steps(backend)
+    core_error = None
+    try:
+        channels = _core_get("/api/plugin/channels") or []
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        channels, core_error = [], f"Core unreachable, connected agents unknown: {exc}"
+    hooks = list((_core_yaml().get("webhooks") or {}).keys())
+    return {
+        "steps": steps,
+        "problems": problems,
+        "sources": routing.list_sources([str(h) for h in hooks], steps),
+        "targets": routing.list_targets(channels, steps),
+        "presets": presets.PRESETS,
+        "core_error": core_error,
+    }
+
+
+class StepBody(BaseModel):
+    sources: list[str] = Field(default_factory=list)
+    rules: list[dict] = Field(default_factory=list)
+    keep_going: bool = False
+    priority: float | None = None
+    index: int | None = None
+
+
+@api.post("/api/routing/steps", dependencies=[Depends(_check_auth)])
+def routing_step_add(body: StepBody):
+    return routing.save_step(backend, body.model_dump())
+
+
+@api.put("/api/routing/steps/{path:path}", dependencies=[Depends(_check_auth)])
+def routing_step_save(path: str, body: StepBody):
+    return routing.save_step(backend, {**body.model_dump(), "file": path})
+
+
+@api.delete("/api/routing/steps/{path:path}", dependencies=[Depends(_check_auth)])
+def routing_step_delete(path: str):
+    routing.delete_step(backend, path)
+    return {"ok": True}
+
+
+class MoveBody(BaseModel):
+    source: str
+    file: str
+    index: int
+
+
+@api.post("/api/routing/move", dependencies=[Depends(_check_auth)])
+def routing_move(body: MoveBody):
+    return routing.move_step(backend, body.source, body.file, body.index)
+
+
+class PresetBody(BaseModel):
+    variant: str
+    params: dict = Field(default_factory=dict)
+
+
+@api.post("/api/routing/presets/{preset_id}", dependencies=[Depends(_check_auth)])
+def routing_preset_apply(preset_id: str, body: PresetBody):
+    return {"steps": presets.apply_preset(backend, preset_id, body.variant, body.params)}
+
+
+@api.delete("/api/routing/presets/{preset_id}", dependencies=[Depends(_check_auth)])
+def routing_preset_remove(preset_id: str, source: str):
+    return {"removed": presets.remove_preset(backend, preset_id, source)}
 
 
 class ConnectorBody(BaseModel):

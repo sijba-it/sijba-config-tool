@@ -54,13 +54,35 @@ Open `http://localhost:8081/`.
 | `POST` | `/api/apply` | asks Core to reload its config (`POST /api/admin/reload`) |
 | `GET`/`POST` | `/api/webhooks` | list / add a named webhook (`{"name"}`, token generated) in `core.yaml` |
 | `DELETE` | `/api/webhooks/{name}` | remove it |
+| `GET` | `/api/routing` | inbound steps in order, sources, targets (Core `/api/plugin/channels`), templates |
+| `POST` | `/api/routing/steps` | new rules step (`{sources, rules, keep_going, index}`) |
+| `PUT`/`DELETE` | `/api/routing/steps/{path}` | save / remove a rules step |
+| `POST` | `/api/routing/move` | `{source, file, index}` — reorder within a source's flow |
+| `POST`/`DELETE` | `/api/routing/presets/{id}` | apply a template (`{variant, params}`) / remove it (`?source=`) |
 
-The UI has two pages: **Connections** (connectors, webhooks) and **Advanced**
-(the file editor). Saving a file or webhook marks "Apply changes"; applying
+The UI has three pages: **Connections** (connectors, webhooks), **Routing**
+and **Advanced** (the file editor). Saving a file or webhook marks "Apply changes"; applying
 reloads Core without a restart and reports files it skipped and settings that
 still need a restart (`port`, `db_path`, …).
 
 If `ROOT_PATH` is set (k8s: `/config-ui`), all of the above are under that prefix.
+
+## Routing page
+
+Shows the inbound handlers a message from one source passes through, in
+priority order. Steps run by the `regex-router` plugin are edited as plain
+rules — *starts with / contains / every message / regex* → target `@mention`
+(dropdown of connected agents) + optional `[label]` + "text after the keyword"
+or "whole message" — and written back as regex-router routes (inline `ROUTES`,
+or the existing `ROUTES_FILE` under `routes/`). A route that doesn't round-trip
+exactly stays an expert rule (raw regex / Jinja template); nothing hand-written
+is rewritten. "Continue afterwards" = `ON_MATCH_CONTINUE` (copy/tee). Other
+handlers (LLM router, plugins) are listed and can be reordered but are edited
+under Advanced.
+
+Reordering sets a priority between the new neighbours and renames the file
+(`NN.N-id.json`). Templates (`presets.py`) write ordinary rules steps tagged
+`category: ["preset:<id>"]` so they can be removed as a set.
 
 ## Connectors (optional)
 
