@@ -106,6 +106,64 @@
   .row.add input { flex: 1; min-width: 10rem; width: auto; }
   .empty { color: var(--muted); font-size: .9rem; padding: .7rem 1rem; margin: 0; }
 
+  /* routing */
+  .chips { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .chip { border: 1px solid var(--border); background: var(--panel); color: var(--muted);
+          padding: .3rem .8rem; border-radius: 999px; font-size: .88rem; }
+  .chip.active { background: var(--accent-bg); border-color: var(--accent-bg); color: #fff; }
+  .notice { background: var(--panel); border: 1px solid var(--warn); color: var(--warn); border-radius: var(--radius);
+            padding: .6rem 1rem; font-size: .88rem; margin-bottom: 1rem; }
+  .flow { display: flex; flex-direction: column; }
+  .flow .link { width: 2px; height: 1rem; background: var(--border); margin-left: 1.55rem; }
+  .step { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: .8rem 1rem;
+          display: flex; flex-direction: column; gap: .5rem; }
+  .step.drop-before { box-shadow: 0 -3px 0 var(--accent); } .step.drop-after { box-shadow: 0 3px 0 var(--accent); }
+  .step.dragging { opacity: .45; }
+  .step.muted { opacity: .75; }
+  .step-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  .step-head .num { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--border);
+                    display: grid; place-items: center; font-size: .8rem; color: var(--muted); flex: none; }
+  .step-head .title { font-weight: 600; }
+  .handle { cursor: grab; color: var(--muted); user-select: none; padding: 0 .2rem; }
+  .tag { font-size: .72rem; padding: .05rem .45rem; border-radius: 6px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--border); }
+  .tag.go { color: var(--ok); border-color: currentColor; background: transparent; }
+  .tag.stop { color: var(--muted); }
+  .tag.bad { color: var(--bad); border-color: currentColor; background: transparent; }
+  .rules-read { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: .3rem; font-size: .9rem; }
+  .rules-read li { display: flex; gap: .4rem; flex-wrap: wrap; align-items: baseline; }
+  .rules-read .cond { color: var(--muted); }
+  .rules-read .arrow { color: var(--muted); }
+  .rules-read .tgt { font-weight: 600; }
+  .rules-read .how { color: var(--muted); font-size: .82rem; }
+  .step .sub { color: var(--muted); font-size: .85rem; margin: 0; }
+  .step-edit { display: flex; flex-direction: column; gap: .75rem; border-top: 1px solid var(--border); padding-top: .75rem; }
+  .step-ops { display: flex; gap: .25rem; align-items: center; margin-left: auto; }
+  .rule-edit { display: grid; grid-template-columns: 8.5rem minmax(0, 1.5fr) minmax(0, 1fr) 6.5rem minmax(0, 1fr) auto; gap: .4rem; align-items: center; }
+  .rule-edit select { padding-right: .3rem; }
+  .rule-edit .wide-input { grid-column: 4 / 6; font-family: var(--mono); font-size: .82rem; }
+  .rule-edit .ops { display: flex; gap: .2rem; }
+  .rule-edit input.mono { font-family: var(--mono); font-size: .82rem; }
+  .opts { display: flex; gap: 1.25rem; flex-wrap: wrap; font-size: .88rem; align-items: center; }
+  .opts label { display: flex; gap: .35rem; align-items: center; }
+  .opts input { width: auto; }
+  .flow-end { color: var(--muted); font-size: .85rem; margin: .25rem 0 0 .9rem; }
+  .flow-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; }
+  .tpl-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: .75rem; }
+  .tpl { text-align: left; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+         padding: .8rem 1rem; color: var(--text); }
+  .tpl:hover { border-color: var(--muted); }
+  .tpl .name { font-weight: 600; display: block; margin-bottom: .2rem; }
+  .tpl .desc { color: var(--muted); font-size: .85rem; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem;
+           display: flex; flex-direction: column; gap: .75rem; margin-top: 1rem; }
+  .panel h3 { margin: 0; font-size: 1rem; }
+  .variants { display: flex; flex-direction: column; gap: .4rem; }
+  .variants label { display: flex; gap: .5rem; align-items: baseline; font-size: .9rem; }
+  .variants input { width: auto; }
+  .variants .desc { color: var(--muted); font-size: .85rem; }
+  .fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .75rem 1rem; }
+  .fgrid .f.words { grid-column: 1 / -1; }
+
   /* toast */
   #toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 10;
            background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
@@ -159,6 +217,8 @@
     #files { border-right: 0; border-bottom: 1px solid var(--border); max-height: 14rem; }
     #editor { min-height: 60vh; }
     .kv-row, .route-row { grid-template-columns: 1fr; }
+    .rule-edit { grid-template-columns: 1fr 1fr; padding-bottom: .6rem; border-bottom: 1px dashed var(--border); }
+    .rule-edit .wide-input { grid-column: 1 / -1; }
   }
 </style>
 </head>
@@ -181,6 +241,7 @@
     <span class="brand">sijba</span>
     <nav class="pages">
       <button type="button" data-page="connections" class="active">Connections</button>
+      <button type="button" data-page="routing">Routing</button>
       <button type="button" data-page="advanced">Advanced</button>
     </nav>
     <span class="spacer"></span>
@@ -197,6 +258,20 @@
     <h2>Webhooks</h2>
     <p class="lead">Addresses other tools (Shortcuts, Pebble, home automation, …) can send messages to. Treat them like passwords.</p>
     <div class="list" id="hooks"></div>
+  </section>
+
+  <section class="page" id="page-routing" hidden>
+    <h2>Routing</h2>
+    <p class="lead">What happens to an incoming message, step by step from top to bottom. A step that
+      handles the message ends here — unless it says <em>continues</em>.</p>
+    <div class="chips" id="r-sources"></div>
+    <div id="r-notices"></div>
+    <div class="flow" id="r-flow"></div>
+    <div class="flow-actions">
+      <button class="btn" type="button" id="r-add">+ Add rules</button>
+      <button class="btn" type="button" id="r-add-tpl">+ From a template</button>
+    </div>
+    <div id="r-tpl"></div>
   </section>
 
   <section id="page-advanced" hidden>
@@ -318,9 +393,11 @@ document.getElementById("logout-btn").onclick = () => {
 function showPage(name) {
   document.querySelectorAll("nav.pages button").forEach(b => b.classList.toggle("active", b.dataset.page === name));
   document.getElementById("page-connections").hidden = name !== "connections";
+  document.getElementById("page-routing").hidden = name !== "routing";
   document.getElementById("page-advanced").hidden = name !== "advanced";
   clearTimeout(connTimer);
   if (name === "connections") loadConnections();
+  else if (name === "routing") loadRouting();
   else loadList();
 }
 document.querySelectorAll("nav.pages button").forEach(b => b.onclick = () => showPage(b.dataset.page));
@@ -532,6 +609,407 @@ function hookRow(h) {
     } catch (err) { if (!(err instanceof AuthError)) toast(errText(err), "bad"); }
   }}, "Delete"));
   return row;
+}
+
+/* ---------- routing ---------- */
+
+let routing = null;           // last /api/routing
+let rSource = localStorage.getItem("sijba_routing_source") || "";
+let rEditing = null;          // file of the step being edited, "new", or null
+let rTemplate = null;         // open template panel: null | "list" | preset id
+let dragFile = null;
+
+const WHEN_TEXT = {starts: "Starts with", contains: "Contains", always: "Every message", regex: "Regex (expert)"};
+const SEND_TEXT = {rest: "text after the keyword", text: "whole message"};
+const CUSTOM = "__custom", OTHER = "__other";
+
+async function loadRouting() {
+  try { routing = await api("/api/routing"); }
+  catch (e) {
+    if (!(e instanceof AuthError)) document.getElementById("r-flow").innerHTML = '<p class="empty">' + esc(errText(e)) + "</p>";
+    return;
+  }
+  if (!routing.sources.some(s => s.source === rSource)) rSource = (routing.sources[0] || {}).source || "";
+  renderRouting();
+}
+
+function currentFlow() {
+  return routing.steps.filter(s => !s.sources.length || s.sources.includes(rSource));
+}
+
+function routingChanged(msg) {
+  setPending(true);
+  toast((msg || "Saved") + " — press Apply changes to use it", "ok");
+  rEditing = null; rTemplate = null;
+  loadRouting();
+}
+
+function renderRouting() {
+  const chips = document.getElementById("r-sources");
+  chips.innerHTML = "";
+  for (const s of routing.sources) {
+    chips.appendChild(el("button", {type: "button", className: "chip" + (s.source === rSource ? " active" : ""), onClick: () => {
+      rSource = s.source; rEditing = null;
+      localStorage.setItem("sijba_routing_source", rSource);
+      renderRouting();
+    }}, s.label));
+  }
+
+  const notices = document.getElementById("r-notices");
+  notices.innerHTML = "";
+  if (routing.core_error) notices.appendChild(el("div", {className: "notice"},
+    "sijba is not reachable, so the list of connected agents is missing. Rules can still be edited."));
+  for (const p of routing.problems) notices.appendChild(el("div", {className: "notice"}, "Not readable: " + p));
+
+  const box = document.getElementById("r-flow");
+  box.innerHTML = "";
+  const steps = currentFlow();
+  if (!steps.length) box.appendChild(el("p", {className: "empty"}, "No steps yet — messages from here are not handled."));
+  steps.forEach((s, i) => {
+    if (i) box.appendChild(el("div", {className: "link"}));
+    box.appendChild(stepCard(s, i, steps));
+  });
+  if (rEditing === "new") {
+    if (steps.length) box.appendChild(el("div", {className: "link"}));
+    box.appendChild(newStepCard(steps));
+  }
+  if (steps.length) box.appendChild(el("p", {className: "flow-end"}, "End — if no step handled it, the message gets no further."));
+  document.getElementById("r-add").hidden = rEditing === "new";
+  renderTemplates();
+}
+
+function stepTitle(s) {
+  if (s.kind === "rules") return s.keep_going ? "Send a copy" : "Rules";
+  if (s.kind === "ai") return "AI decides";
+  return "Plugin";
+}
+
+function sourceLabel(src) {
+  const s = routing.sources.find(x => x.source === src);
+  return s ? s.label : src;
+}
+
+function targetOf(mention) {
+  return routing.targets.find(t => t.mention.toLowerCase() === String(mention).toLowerCase());
+}
+
+function presetLabel(id) {
+  const p = routing.presets.find(x => x.id === id);
+  return p ? p.label : id;
+}
+
+function stepCard(s, i, steps) {
+  const card = el("div", {className: "step" + (s.kind === "rules" ? "" : " muted")});
+  const handle = el("span", {className: "handle", title: "Drag to reorder"}, "⋮⋮");
+  const head = el("div", {className: "step-head"}, handle, el("span", {className: "num"}, String(i + 1)),
+    el("span", {className: "title"}, stepTitle(s)), el("code", {className: "msg"}, s.id));
+  if (s.kind === "rules") head.appendChild(s.keep_going
+    ? el("span", {className: "tag go", title: "Later steps see the message too"}, "continues")
+    : el("span", {className: "tag stop"}, "stops when a rule fits"));
+  if (!s.sources.length) head.appendChild(el("span", {className: "tag"}, "all sources"));
+  else if (s.sources.length > 1) head.appendChild(el("span", {className: "tag", title: s.sources.map(sourceLabel).join(", ")},
+    "+" + (s.sources.length - 1) + " more sources"));
+  if (s.only_matching) head.appendChild(el("span", {className: "tag", title: "Only messages matching its own filter"}, "filtered"));
+  if (s.preset) head.appendChild(el("span", {className: "tag"}, "template: " + presetLabel(s.preset)));
+  const ops = el("span", {className: "step-ops"},
+    el("button", {type: "button", className: "btn small ghost", title: "Move up", disabled: i === 0,
+      onClick: () => moveStep(s.file, i - 1)}, "↑"),
+    el("button", {type: "button", className: "btn small ghost", title: "Move down", disabled: i === steps.length - 1,
+      onClick: () => moveStep(s.file, i + 1)}, "↓"));
+  if (s.editable && rEditing !== s.file) ops.appendChild(el("button", {type: "button", className: "btn small",
+    onClick: () => { rEditing = s.file; renderRouting(); }}, "Edit"));
+  if (!s.editable) ops.appendChild(el("button", {type: "button", className: "btn small ghost",
+    onClick: () => { showPage("advanced"); openFile(s.file); }}, "Open in Advanced"));
+  head.appendChild(ops);
+  card.appendChild(head);
+
+  if (s.kind === "rules" && s.rules) {
+    if (rEditing === s.file) card.appendChild(stepEditor(s, steps));
+    else card.appendChild(rulesList(s.rules));
+    if (s.routes_file && rEditing !== s.file) card.appendChild(el("p", {className: "sub"}, "Rules are kept in " + s.routes_file));
+  }
+  if (s.note && !(s.kind === "rules" && s.editable)) {
+    const text = s.kind === "ai" ? "Model " + s.note + " picks a target from the message. Settings under Advanced."
+      : s.kind === "rules" ? s.note : "Runs " + s.note;
+    card.appendChild(el("p", {className: "sub"}, text));
+  }
+
+  card.addEventListener("dragover", e => {
+    if (!dragFile || dragFile === s.file) return;
+    e.preventDefault();
+    const r = card.getBoundingClientRect(), after = e.clientY > r.top + r.height / 2;
+    card.classList.toggle("drop-after", after); card.classList.toggle("drop-before", !after);
+  });
+  card.addEventListener("dragleave", () => card.classList.remove("drop-before", "drop-after"));
+  card.addEventListener("drop", e => {
+    e.preventDefault();
+    const after = card.classList.contains("drop-after");
+    card.classList.remove("drop-before", "drop-after");
+    const others = steps.filter(x => x.file !== dragFile);
+    const idx = others.findIndex(x => x.file === s.file) + (after ? 1 : 0);
+    if (dragFile) moveStep(dragFile, idx);
+  });
+  handle.addEventListener("mousedown", () => { card.draggable = true; });
+  card.addEventListener("dragstart", e => {
+    dragFile = s.file; card.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", s.file);
+  });
+  card.addEventListener("dragend", () => { dragFile = null; card.draggable = false; card.classList.remove("dragging"); });
+  return card;
+}
+
+function rulesList(rules) {
+  const ul = el("ul", {className: "rules-read"});
+  if (!rules.length) ul.appendChild(el("li", {className: "cond"}, "No rules"));
+  for (const r of rules) {
+    const li = el("li", {});
+    if (r.when === "always") li.appendChild(el("span", {className: "cond"}, "Every message"));
+    else if (r.when === "regex") li.append(el("span", {className: "cond"}, "Matches"), el("code", {}, r.pattern));
+    else li.append(el("span", {className: "cond"}, WHEN_TEXT[r.when].toLowerCase()),
+      el("span", {}, r.words.map(w => "“" + w + "”").join(", ")));
+    li.appendChild(el("span", {className: "arrow"}, "→"));
+    if (r.target) {
+      const t = targetOf(r.target);
+      li.appendChild(el("span", {className: "tgt", title: r.target}, t && t.label !== t.mention ? t.label : r.target));
+      if (!t || !t.online) li.appendChild(el("span", {className: "tag bad", title: "Not connected to sijba right now"}, "not connected"));
+      if (r.tag) li.appendChild(el("span", {className: "tag"}, r.tag));
+      li.appendChild(el("span", {className: "how"}, "· " + SEND_TEXT[r.send]));
+    } else {
+      li.appendChild(el("code", {}, r.template));
+    }
+    ul.appendChild(li);
+  }
+  return ul;
+}
+
+function targetSelect(value) {
+  const s = el("select", {});
+  const add = (v, label) => { const o = el("option", {value: v, text: label}); if (v === value) o.selected = true; s.appendChild(o); };
+  if (!routing.targets.length) add("", "— choose —");
+  for (const t of routing.targets) {
+    const name = t.label && t.label !== t.mention ? t.label + " (" + t.mention + ")" : t.mention;
+    add(t.mention, t.online ? name : name + " — not connected");
+  }
+  if (value && value !== CUSTOM && !targetOf(value)) add(value, value);
+  add(OTHER, "Other name…");
+  add(CUSTOM, "Custom template (expert)…");
+  s.addEventListener("change", () => {
+    if (s.value !== OTHER) return;
+    let name = (prompt("Send to (an @name sijba knows, e.g. @obsidian):") || "").trim();
+    if (name && !name.startsWith("@")) name = "@" + name;
+    if (!name) { s.value = s.dataset.prev || ""; return; }
+    const o = el("option", {value: name, text: name});
+    s.insertBefore(o, s.querySelector('option[value="' + OTHER + '"]'));
+    s.value = name;
+  });
+  s.addEventListener("focus", () => { s.dataset.prev = s.value; });
+  return s;
+}
+
+function ruleEditor(rule, list) {
+  const row = el("div", {className: "rule-edit"});
+  const when = selectInput(rule.when, Object.keys(WHEN_TEXT));
+  when.querySelectorAll("option").forEach(o => { o.textContent = WHEN_TEXT[o.value]; });
+  const words = textInput(rule.when === "regex" ? rule.pattern : (rule.words || []).join(", "));
+  const custom = !rule.target && rule.template != null;
+  const target = targetSelect(custom ? CUSTOM : rule.target);
+  const tag = textInput(rule.tag || "", {placeholder: "label (optional)", title: "Shown in [brackets] in front of the text"});
+  const send = selectInput(rule.send || "rest", ["rest", "text"]);
+  send.querySelectorAll("option").forEach(o => { o.textContent = SEND_TEXT[o.value]; });
+  const tpl = textInput(rule.template || "", {className: "wide-input", placeholder: "@name [label] {{ rest }}",
+    title: "Jinja2 template — variables: rest, text, groups[]"});
+  const sync = () => {
+    words.style.visibility = when.value === "always" ? "hidden" : "";
+    words.classList.toggle("mono", when.value === "regex");
+    words.placeholder = when.value === "regex" ? "regex, e.g. ^(einkauf)\\b" : "words, comma separated";
+    const isCustom = target.value === CUSTOM;
+    tag.hidden = send.hidden = isCustom;
+    tpl.hidden = !isCustom;
+  };
+  when.addEventListener("change", () => {
+    if (when.value !== "starts" && send.value === "rest") send.value = "text";
+    if (when.value === "starts" && send.value === "text") send.value = "rest";
+    sync();
+  });
+  target.addEventListener("change", sync);
+  const ops = el("span", {className: "ops"},
+    el("button", {type: "button", className: "btn small ghost", title: "Up", onClick: () => {
+      if (row.previousElementSibling) list.insertBefore(row, row.previousElementSibling); }}, "↑"),
+    el("button", {type: "button", className: "btn small ghost", title: "Down", onClick: () => {
+      if (row.nextElementSibling) list.insertBefore(row.nextElementSibling, row); }}, "↓"),
+    el("button", {type: "button", className: "btn small ghost danger", title: "Remove rule", onClick: () => row.remove()}, "×"));
+  row.append(when, words, target, tag, send, tpl, ops);
+  sync();
+  row.read = () => {
+    const r = {when: when.value};
+    if (when.value === "regex") r.pattern = words.value.trim();
+    else if (when.value !== "always") r.words = splitList(words.value);
+    if (target.value === CUSTOM) { r.target = ""; r.template = tpl.value.trim(); }
+    else { r.target = target.value; r.tag = tag.value.trim(); r.send = send.value; }
+    return r;
+  };
+  return row;
+}
+
+function blankRule() {
+  const t = routing.targets.find(x => x.online) || routing.targets[0];
+  return {when: "starts", words: [], target: t ? t.mention : "", tag: "", send: "rest"};
+}
+
+function stepEditor(s, steps) {
+  const wrap = el("div", {className: "step-edit"});
+  const list = el("div", {className: "flow", style: "gap:.4rem"});
+  for (const r of s.rules) list.appendChild(ruleEditor(r, list));
+  wrap.appendChild(list);
+  wrap.appendChild(el("div", {}, el("button", {type: "button", className: "btn small", onClick: () => {
+    list.appendChild(ruleEditor(blankRule(), list));
+  }}, "+ rule")));
+
+  const srcBoxes = routing.sources.map(src => {
+    const box = el("input", {type: "checkbox", checked: s.sources.includes(src.source)});
+    box.dataset.source = src.source;
+    return el("label", {}, box, src.label);
+  });
+  const keep = el("input", {type: "checkbox", checked: s.keep_going});
+  wrap.appendChild(el("div", {className: "opts"}, el("span", {className: "msg"}, "Messages from:"), ...srcBoxes));
+  wrap.appendChild(el("div", {className: "opts"}, el("label", {}, keep,
+    "Continue afterwards — later steps still see the message (for copies)")));
+  wrap.appendChild(el("p", {className: "sub"}, "First fitting rule wins. No source ticked = applies to all sources."));
+
+  const msg = el("span", {className: "msg"});
+  const save = el("button", {type: "button", className: "btn primary"}, s.file ? "Save" : "Add step");
+  save.onclick = async () => {
+    const body = {
+      rules: [...list.children].map(r => r.read()),
+      sources: srcBoxes.map(l => l.querySelector("input")).filter(b => b.checked).map(b => b.dataset.source),
+      keep_going: keep.checked,
+    };
+    if (!s.file) {
+      let last = -1;
+      steps.forEach((x, i) => { if (x.kind === "rules") last = i; });
+      body.index = last + 1;
+    }
+    save.disabled = true; msg.className = "msg"; msg.textContent = "Saving…";
+    try {
+      await api(s.file ? "/api/routing/steps/" + encodeURI(s.file) : "/api/routing/steps",
+        {method: s.file ? "PUT" : "POST", body: JSON.stringify(body)});
+      routingChanged(s.file ? "Saved" : "Step added");
+    } catch (e) {
+      if (e instanceof AuthError) return;
+      msg.className = "msg bad"; msg.textContent = errText(e); save.disabled = false;
+    }
+  };
+  const actions = el("div", {className: "actions"}, save,
+    el("button", {type: "button", className: "btn ghost", onClick: () => { rEditing = null; renderRouting(); }}, "Cancel"));
+  if (s.file) actions.appendChild(el("button", {type: "button", className: "btn ghost danger", onClick: async () => {
+    if (!confirm("Remove this step? Its rules are deleted (a .bak copy stays).")) return;
+    try { await api("/api/routing/steps/" + encodeURI(s.file), {method: "DELETE"}); routingChanged("Step removed"); }
+    catch (e) { if (!(e instanceof AuthError)) toast(errText(e), "bad"); }
+  }}, "Remove step"));
+  if (s.preset) actions.appendChild(el("button", {type: "button", className: "btn ghost danger", onClick: async () => {
+    if (!confirm("Remove every step the template “" + presetLabel(s.preset) + "” added for " + sourceLabel(rSource) + "?")) return;
+    try {
+      await api("/api/routing/presets/" + encodeURIComponent(s.preset) + "?source=" + encodeURIComponent(rSource), {method: "DELETE"});
+      routingChanged("Template removed");
+    } catch (e) { if (!(e instanceof AuthError)) toast(errText(e), "bad"); }
+  }}, "Remove template"));
+  actions.appendChild(msg);
+  wrap.appendChild(actions);
+  return wrap;
+}
+
+function newStepCard(steps) {
+  const s = {file: null, sources: rSource ? [rSource] : [], rules: [blankRule()], keep_going: false};
+  return el("div", {className: "step"},
+    el("div", {className: "step-head"}, el("span", {className: "title"}, "New rules")),
+    stepEditor(s, steps));
+}
+
+async function moveStep(file, index) {
+  try {
+    await api("/api/routing/move", {method: "POST", body: JSON.stringify({source: rSource, file, index})});
+    setPending(true);
+    loadRouting();
+  } catch (e) { if (!(e instanceof AuthError)) toast(errText(e), "bad"); }
+}
+
+document.getElementById("r-add").onclick = () => { rEditing = "new"; renderRouting(); };
+document.getElementById("r-add-tpl").onclick = () => { rTemplate = rTemplate ? null : "list"; renderTemplates(); };
+
+function renderTemplates() {
+  const box = document.getElementById("r-tpl");
+  box.innerHTML = "";
+  if (!rTemplate || !routing) return;
+  const panel = el("div", {className: "panel"});
+  if (rTemplate === "list") {
+    panel.appendChild(el("h3", {}, "Start from a template"));
+    const list = el("div", {className: "tpl-list"});
+    for (const p of routing.presets) list.appendChild(el("button", {type: "button", className: "tpl",
+      onClick: () => { rTemplate = p.id; renderTemplates(); }},
+      el("span", {className: "name"}, p.label), el("span", {className: "desc"}, p.description)));
+    panel.append(list, el("div", {}, el("button", {type: "button", className: "btn ghost",
+      onClick: () => { rTemplate = null; renderTemplates(); }}, "Cancel")));
+  } else {
+    panel.appendChild(templateForm(routing.presets.find(p => p.id === rTemplate)));
+  }
+  box.appendChild(panel);
+  panel.scrollIntoView({block: "nearest", behavior: "smooth"});
+}
+
+function templateForm(p) {
+  const form = el("form", {className: "step-edit", style: "border:0;padding:0"});
+  form.appendChild(el("h3", {}, p.label));
+  form.appendChild(el("p", {className: "sub"}, p.description));
+  const variants = el("div", {className: "variants"});
+  p.variants.forEach((v, i) => variants.appendChild(el("label", {},
+    el("input", {type: "radio", name: "tpl-variant", value: v.id, checked: i === 0}),
+    el("span", {}, el("strong", {}, v.label), " ", el("span", {className: "desc"}, v.description)))));
+  form.appendChild(variants);
+
+  const inputs = {};
+  const grid = el("div", {className: "fgrid"});
+  for (const f of p.params) {
+    let input;
+    if (f.kind === "source") {
+      input = el("select", {});
+      for (const s of routing.sources) {
+        const o = el("option", {value: s.source, text: s.label});
+        if (s.source === rSource) o.selected = true;
+        input.appendChild(o);
+      }
+    } else if (f.kind === "target") {
+      const def = targetOf(f.default) ? targetOf(f.default).mention : ((routing.targets.find(t => t.online) || {}).mention || "");
+      input = targetSelect(def);
+      input.querySelector('option[value="' + CUSTOM + '"]').remove();
+    } else {
+      input = textInput(f.default || "");
+    }
+    inputs[f.name] = input;
+    grid.appendChild(el("div", {className: "f" + (f.kind === "words" ? " words" : "")}, el("label", {}, f.label), input));
+  }
+  form.appendChild(grid);
+
+  const msg = el("span", {className: "msg"});
+  const submit = el("button", {type: "submit", className: "btn primary"}, "Add");
+  form.appendChild(el("div", {className: "actions"}, submit,
+    el("button", {type: "button", className: "btn ghost", onClick: () => { rTemplate = "list"; renderTemplates(); }}, "Back"),
+    msg));
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const params = Object.fromEntries(Object.entries(inputs).map(([k, i]) => [k, i.value]));
+    const variant = form.querySelector('input[name="tpl-variant"]:checked').value;
+    submit.disabled = true; msg.className = "msg"; msg.textContent = "Adding…";
+    try {
+      await api("/api/routing/presets/" + encodeURIComponent(p.id), {method: "POST", body: JSON.stringify({variant, params})});
+      rSource = params.source || rSource;
+      localStorage.setItem("sijba_routing_source", rSource);
+      routingChanged("Template added");
+    } catch (err) {
+      if (err instanceof AuthError) return;
+      msg.className = "msg bad"; msg.textContent = errText(err); submit.disabled = false;
+    }
+  });
+  return form;
 }
 
 /* ---------- advanced: file editor ---------- */

@@ -118,6 +118,17 @@ class FsBackend:
         tmp.replace(path)
         return {"path": rel, "bytes": path.stat().st_size, "validation": report}
 
+    def delete(self, rel: str, *, backup: bool = True) -> None:
+        """Remove a file. With `backup` its last content stays as `.bak`
+        (Core only loads `*.json`, so a `.json.bak` is inert)."""
+        path = self.resolve(rel)
+        if not path.is_file():
+            raise ConfigError(f"not found: {rel}", 404)
+        if backup:
+            path.replace(path.with_suffix(path.suffix + ".bak"))
+        else:
+            path.unlink()
+
     def validate(self, rel: str, content: Optional[str] = None) -> dict[str, Any]:
         if content is None:
             path = self.resolve(rel)
