@@ -34,9 +34,10 @@ _SEP = r"\s*[:,-]?\s*"
 _END = (r"\b", r"(?!\w)")
 _START = (r"\b", r"(?<!\w)")
 _SPECIAL = re.compile(r"([.*+?^${}()|\[\]\\])")
-_TARGET = re.compile(r"^@[^\s\[\]{}]+$")
+# Channel triggers may contain spaces ("@request Tracker"); Core matches them by prefix.
+_TARGET = re.compile(r"^@[^\s\[\]{}](?:[^\[\]{}]*[^\s\[\]{}])?$")
 _TAG = re.compile(r"^[^\s\[\]{}]+$")
-_INJECT = re.compile(r"(@[^\s\[\]{}]+)(?: \[([^\s\[\]{}]+)\])? \{\{ (rest|text) \}\}")
+_INJECT = re.compile(r"(@[^\s\[\]{}](?:[^\[\]{}]*?[^\s\[\]{}])?)(?: \[([^\s\[\]{}]+)\])? \{\{ (rest|text) \}\}")
 
 
 def _esc_word(word: str) -> str:

@@ -88,6 +88,14 @@ def test_generated_patterns_match_like_the_router(rule, text, hit, rest):
     assert routing.parse_pattern(pattern) == ({"when": "always"} if rule["when"] == "always" else rule)
 
 
+def test_targets_with_spaces():
+    rule = {"when": "always", "target": "@request Tracker", "tag": "bug", "send": "text"}
+    route = routing.route_from_rule(rule)
+    assert route["inject"] == "@request Tracker [bug] {{ text }}"
+    assert routing.rule_from_route(route) == rule
+    assert routing.parse_inject("@request Tracker {{ rest }}")["target"] == "@request Tracker"
+
+
 def test_hand_written_routes_stay_untouched():
     route = {"pattern": "^(?:hey )?(einkauf)\\b", "inject": "@obsidian [{{ 'a' if 'x' in text else 'b' }}] {{ text }}"}
     rule = routing.rule_from_route(route)
