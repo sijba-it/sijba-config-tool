@@ -80,3 +80,13 @@ def test_webhooks_list_add_delete(client):
     assert c.delete("/api/webhooks/pebble", headers=AUTH).status_code == 200
     assert "pebble" not in yaml.safe_load((d / "core.yaml").read_text())["webhooks"]
     assert c.delete("/api/webhooks/pebble", headers=AUTH).status_code == 404
+
+
+def test_delete_file_keeps_bak(client):
+    c, d = client
+    (d / "handlers").mkdir()
+    (d / "handlers" / "50.0-x.json").write_text("{}")
+    assert c.delete("/api/files/handlers/50.0-x.json", headers=AUTH).status_code == 200
+    assert not (d / "handlers/50.0-x.json").exists() and (d / "handlers/50.0-x.json.bak").exists()
+    assert c.delete("/api/files/handlers/50.0-x.json", headers=AUTH).status_code == 404
+    assert c.delete("/api/files/core.yaml", headers=AUTH).status_code == 422

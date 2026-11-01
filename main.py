@@ -111,6 +111,14 @@ def put_file(path: str, body: PutBody):
     return backend.put(path, body.content, backup=body.backup)
 
 
+@api.delete("/api/files/{path:path}", dependencies=[Depends(_check_auth)])
+def delete_file(path: str):
+    if path == "core.yaml":
+        raise HTTPException(422, "core.yaml cannot be deleted")
+    backend.delete(path)
+    return {"ok": True}
+
+
 @api.post("/api/validate/{path:path}", dependencies=[Depends(_check_auth)])
 def validate_file(path: str, body: ValidateBody | None = None):
     content = body.content if body else None

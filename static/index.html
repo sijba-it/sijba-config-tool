@@ -178,6 +178,7 @@
                   color: var(--text); padding: .35rem 1rem; font-family: var(--mono); font-size: .8rem; }
   #files button:hover { background: var(--panel-2); }
   #files button.active { background: var(--panel-2); color: var(--accent); }
+  #files button.new { font-family: var(--sans); color: var(--accent); margin-bottom: .25rem; }
   #editor-wrap { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   #toolbar { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; padding: .5rem 1rem; border-bottom: 1px solid var(--border); }
   #toolbar .path { font-family: var(--mono); font-size: .85rem; color: var(--accent); }
@@ -286,6 +287,8 @@
           </div>
           <span class="spacer"></span>
           <span id="status"></span>
+          <button class="btn small ghost" id="btn-dup" hidden>Duplicate</button>
+          <button class="btn small ghost danger" id="btn-del" hidden>Delete</button>
           <button class="btn small" id="btn-validate" disabled>Validate</button>
           <button class="btn small primary" id="btn-save" disabled>Save</button>
         </div>
@@ -1061,6 +1064,7 @@ async function loadList() {
   try {
     const data = await api("/api/files");
     nav.innerHTML = "";
+    nav.appendChild(el("button", {type: "button", className: "new", onClick: () => newHandlerForm()}, "+ New handler"));
     let last = null;
     for (const f of data.files) {
       if (f.kind !== last) { nav.appendChild(el("div", {className: "group"}, GROUPS[f.kind] || f.kind)); last = f.kind; }
@@ -1078,6 +1082,8 @@ async function loadList() {
 async function openFile(path) {
   current = path;
   kind = detectKind(path);
+  document.getElementById("btn-dup").hidden = kind !== "handler";
+  document.getElementById("btn-del").hidden = kind === "core";
   document.getElementById("cur-path").textContent = path;
   document.querySelectorAll("#files button").forEach(b => b.classList.toggle("active", b.dataset.path === path));
   try {
@@ -1399,6 +1405,106 @@ document.getElementById("btn-save").onclick = async () => {
 document.getElementById("editor").addEventListener("keydown", (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); document.getElementById("btn-save").click(); }
 });
+
+/* new / duplicate / delete */
+
+const HANDLER_STARTERS = {
+  plugin: {label: "Plugin script", data: {
+    direction: "inbound", lifecycle: "per_message", type: "exec_json",
+    exec: "{sijba_plugins}/my-plugin/main.py", timeout_seconds: 10}},
+  llm: {label: "LLM router", data: {
+    direction: "inbound", lifecycle: "per_message", type: "exec_json",
+    exec: "{sijba_plugins}/llm-router/main.py", receive_handler_context: true, continue_on_match: false,
+    timeout_seconds: 30, env: {LLM_API_URL: "https://openrouter.ai/api/v1", LLM_API_KEY: "${OPENROUTER_API_KEY}",
+      LLM_MODEL: "openai/gpt-4.1-nano", LLM_TEMPERATURE: "0"}}},
+  http: {label: "HTTP service", data: {
+    direction: "inbound", lifecycle: "persistent", type: "http", timeout_seconds: 30,
+    startup: {url: "http://my-service:8000", invoke_path: "/invoke", restart_policy: "never"}}},
+  outbound: {label: "Outbound (replies)", data: {
+    direction: "outbound", lifecycle: "per_message", type: "exec_json",
+    exec: "{sijba_plugins}/my-plugin/main.py", timeout_seconds: 10}},
+};
+
+function priorityName(p) { return Number.isInteger(p) ? p.toFixed(1) : String(p); }
+
+function resetEditor(msg) {
+  current = null; model = null;
+  document.getElementById("cur-path").textContent = "—";
+  document.getElementById("editor").value = "";
+  document.getElementById("editor").disabled = true;
+  document.getElementById("btn-save").disabled = true;
+  document.getElementById("btn-validate").disabled = true;
+  document.getElementById("btn-dup").hidden = true;
+  document.getElementById("btn-del").hidden = true;
+  document.querySelectorAll("#files button").forEach(b => b.classList.remove("active"));
+  if (mode !== "form") { parseError = null; mode = "raw"; setMode("form"); }
+  document.getElementById("form").innerHTML = msg ? '<p class="empty">' + esc(msg) + "</p>" : "";
+}
+
+function newHandlerForm(copyOf) {
+  resetEditor();
+  document.getElementById("cur-path").textContent = copyOf ? "Duplicate handler" : "New handler";
+  const root = document.getElementById("form");
+  const id = textInput(copyOf ? copyOf.id + "-copy" : "", {placeholder: "e.g. my-plugin"});
+  const prio = numInput(copyOf && copyOf.priority != null ? copyOf.priority : 50);
+  const starter = selectInput("plugin", Object.keys(HANDLER_STARTERS));
+  starter.querySelectorAll("option").forEach(o => { o.textContent = HANDLER_STARTERS[o.value].label; });
+  const msg = el("span", {className: "msg"});
+  const form = el("form", {},
+    section(copyOf ? "Copy of " + copyOf.id : "New handler", el("div", {className: "grid"},
+      field("id (letters, digits, - _ .)", id),
+      field("priority (lower runs first)", prio),
+      copyOf ? null : field("start from", starter))),
+    el("p", {className: "note"}, "Simple keyword rules are easier under Routing → + Add rules."),
+    el("div", {className: "actions"}, el("button", {type: "submit", className: "btn primary"}, "Create"),
+      el("button", {type: "button", className: "btn ghost", onClick: () => resetEditor("Select a file on the left.")}, "Cancel"), msg));
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const hid = id.value.trim();
+    const p = Number(prio.value);
+    if (!/^[A-Za-z0-9._-]+$/.test(hid)) { msg.className = "msg bad"; msg.textContent = "id: letters, digits, - _ . only"; return; }
+    if (prio.value === "" || !(p >= 0)) { msg.className = "msg bad"; msg.textContent = "priority must be 0 or more"; return; }
+    const path = "handlers/" + priorityName(p) + "-" + hid + ".json";
+    const data = Object.assign(JSON.parse(JSON.stringify(copyOf || HANDLER_STARTERS[starter.value].data)), {id: hid, priority: p});
+    const order = Object.assign({id: hid, priority: p}, data);
+    try {
+      const files = (await api("/api/files")).files;
+      if (files.some(f => f.path === path)) throw new Error(path + " already exists");
+      if (files.some(f => f.kind === "handler" && f.path.replace(/^handlers\/[\d.]+-/, "") === hid + ".json"))
+        throw new Error("a handler named " + hid + " already exists");
+      const content = (await api("/api/serialize/" + encodeURI(path), {method: "POST", body: JSON.stringify({data: order})})).content;
+      await api("/api/files/" + encodeURI(path), {method: "PUT", body: JSON.stringify({content, backup: true})});
+      setPending(true);
+      toast("Created " + path + " — press Apply changes to use it", "ok");
+      await loadList();
+      await openFile(path);
+    } catch (err) {
+      if (err instanceof AuthError) return;
+      msg.className = "msg bad"; msg.textContent = errText(err);
+    }
+  });
+  root.appendChild(form);
+  id.focus();
+}
+
+document.getElementById("btn-dup").onclick = async () => {
+  if (kind !== "handler") return;
+  try { if (mode === "raw") await syncRawToModel(); else syncFormToModel(); }
+  catch (e) { setStatus(errText(e), "bad"); return; }
+  newHandlerForm(model);
+};
+
+document.getElementById("btn-del").onclick = async () => {
+  if (!current || kind === "core") return;
+  if (!confirm("Delete " + current + "? A .bak copy stays next to it.")) return;
+  try {
+    await api("/api/files/" + encodeURI(current), {method: "DELETE"});
+    setPending(true);
+    toast("Deleted " + current + " — press Apply changes", "ok");
+    resetEditor("Select a file on the left.");
+    loadList();
+  } catch (e) { if (!(e instanceof AuthError)) setStatus(errText(e), "bad"); }
+};
 
 /* ---------- boot ---------- */
 

@@ -47,6 +47,7 @@ Open `http://localhost:8081/`.
 | `GET` | `/api/files` | list |
 | `GET` | `/api/files/{path}` | read |
 | `PUT` | `/api/files/{path}` | write (`{"content":"…"}`) |
+| `DELETE` | `/api/files/{path}` | delete (leaves `.bak`; not `core.yaml`) |
 | `POST` | `/api/validate/{path}` | validate (`{"content":"…"}` optional) |
 | `POST` | `/api/parse/{path}` | parse → `{kind, data}` for the form |
 | `POST` | `/api/serialize/{path}` | `{data}` → `{content}` |
@@ -61,7 +62,8 @@ Open `http://localhost:8081/`.
 | `POST`/`DELETE` | `/api/routing/presets/{id}` | apply a template (`{variant, params}`) / remove it (`?source=`) |
 
 The UI has three pages: **Connections** (connectors, webhooks), **Routing**
-and **Advanced** (the file editor). Saving a file or webhook marks "Apply changes"; applying
+and **Advanced** (the file editor, with "+ New handler" from a starter —
+plugin script, LLM router, HTTP service, outbound — plus Duplicate / Delete). Saving a file or webhook marks "Apply changes"; applying
 reloads Core without a restart and reports files it skipped and settings that
 still need a restart (`port`, `db_path`, …).
 
