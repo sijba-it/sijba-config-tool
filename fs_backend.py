@@ -14,6 +14,8 @@ from typing import Any, Optional
 
 import yaml
 
+from history import History
+
 try:
     import jsonschema
 except ImportError:  # pragma: no cover
@@ -34,6 +36,7 @@ class FsBackend:
         self.root = root.resolve()
         self.schema_path = schema_path
         self._schema: Optional[dict] = None
+        self.history = History(self.root / ".history")
 
     def _load_schema(self) -> Optional[dict]:
         if self._schema is not None:
@@ -101,12 +104,18 @@ class FsBackend:
         text = path.read_text(encoding="utf-8")
         return {"path": rel, "content": text, "bytes": len(text.encode())}
 
-    def put(self, rel: str, content: str, *, backup: bool = True) -> dict[str, Any]:
+    def read_or_none(self, rel: str) -> Optional[str]:
+        path = self.resolve(rel)
+        return path.read_text(encoding="utf-8") if path.is_file() else None
+
+    def put(self, rel: str, content: str, *, backup: bool = True, validate: bool = True) -> dict[str, Any]:
         path = self.resolve(rel)
         # Validate before write so we never persist garbage as the only copy.
+        # Restoring from history skips it: the old state may have been broken too.
         report = self.validate(rel, content)
-        if not report["ok"]:
+        if validate and not report["ok"]:
             raise ConfigError("; ".join(report["errors"]), 400)
+        before = path.read_text(encoding="utf-8") if path.is_file() else None
 
         path.parent.mkdir(parents=True, exist_ok=True)
         if backup and path.is_file():
@@ -116,6 +125,7 @@ class FsBackend:
         tmp = path.with_suffix(path.suffix + ".tmp")
         tmp.write_text(content, encoding="utf-8")
         tmp.replace(path)
+        self.history.record(rel, before, content)
         return {"path": rel, "bytes": path.stat().st_size, "validation": report}
 
     def delete(self, rel: str, *, backup: bool = True) -> None:
@@ -124,6 +134,7 @@ class FsBackend:
         path = self.resolve(rel)
         if not path.is_file():
             raise ConfigError(f"not found: {rel}", 404)
+        self.history.record(rel, path.read_text(encoding="utf-8"), None)
         if backup:
             path.replace(path.with_suffix(path.suffix + ".bak"))
         else:

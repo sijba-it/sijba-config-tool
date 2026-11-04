@@ -64,7 +64,7 @@
            padding: .6rem 1rem; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
   header .brand { font-weight: 700; font-size: 1.1rem; margin-right: .75rem; }
   nav.pages { display: flex; gap: .25rem; }
-  nav.pages button { background: transparent; border: 0; color: var(--muted); padding: .4rem .75rem; border-radius: 8px; }
+  nav.pages button { background: transparent; border: 0; color: var(--muted); padding: .4rem .75rem; border-radius: 8px; white-space: nowrap; }
   nav.pages button.active { background: var(--panel-2); color: var(--text); }
   header .spacer { flex: 1; }
   #apply-btn.pending { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
@@ -164,6 +164,27 @@
   .fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .75rem 1rem; }
   .fgrid .f.words { grid-column: 1 / -1; }
 
+  /* problems, history */
+  .problems { border-left: 3px solid var(--bad); background: color-mix(in srgb, var(--bad) 9%, transparent);
+              color: var(--bad); padding: .45rem .8rem; font-size: .85rem; border-radius: 0 8px 8px 0; }
+  .problems div + div { margin-top: .2rem; }
+  #problems .problems { margin: .5rem 1rem 0; }
+  #files button.bad::after, nav.pages button.has-problems::after { content: " ●"; color: var(--bad); }
+  .notice .actions { margin-top: .5rem; }
+  .h-row { display: flex; align-items: center; gap: .75rem; padding: .65rem 1rem; flex-wrap: wrap; }
+  .h-row .when { color: var(--muted); font-size: .82rem; min-width: 8.5rem; }
+  .h-row .label { flex: 1; min-width: 12rem; }
+  .h-item { border-top: 1px solid var(--border); }
+  .h-item:first-child { border-top: 0; }
+  .h-detail { padding: .25rem 1rem 1rem; display: flex; flex-direction: column; gap: .4rem; }
+  .h-file { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; font-family: var(--mono); font-size: .82rem; margin-top: .5rem; }
+  .diff { font-family: var(--mono); font-size: .76rem; background: var(--bg); border: 1px solid var(--border);
+          border-radius: 8px; overflow: auto; max-height: 24rem; padding: .3rem 0; }
+  .diff div { white-space: pre; padding: 0 .6rem; min-height: 1.2em; }
+  .diff .add { background: color-mix(in srgb, var(--ok) 18%, transparent); }
+  .diff .del { background: color-mix(in srgb, var(--bad) 18%, transparent); }
+  .diff .gap { color: var(--muted); }
+
   /* toast */
   #toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 10;
            background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
@@ -214,6 +235,7 @@
 
   @media (max-width: 720px) {
     header .brand { margin-right: .25rem; }
+    nav.pages button { padding: .4rem .5rem; }
     #advanced { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: calc(100vh - 3.3rem); }
     #files { border-right: 0; border-bottom: 1px solid var(--border); max-height: 14rem; }
     #editor { min-height: 60vh; }
@@ -244,6 +266,7 @@
       <button type="button" data-page="connections" class="active">Connections</button>
       <button type="button" data-page="routing">Routing</button>
       <button type="button" data-page="advanced">Advanced</button>
+      <button type="button" data-page="history">History</button>
     </nav>
     <span class="spacer"></span>
     <button class="btn" id="apply-btn" type="button" title="Load saved config files into the running sijba">Apply changes</button>
@@ -273,6 +296,17 @@
       <button class="btn" type="button" id="r-add-tpl">+ From a template</button>
     </div>
     <div id="r-tpl"></div>
+    <h2>Replies</h2>
+    <p class="lead">Where answers to these messages go. Only shown here — replies are set up under
+      Connections (e.g. Pushover) or Advanced.</p>
+    <div id="r-replies"></div>
+  </section>
+
+  <section class="page" id="page-history" hidden>
+    <h2>History</h2>
+    <p class="lead">Every change made with this tool. <em>Undo</em> puts the files back as they were before
+      that change — the undo is recorded too, so it can be undone again. Press Apply changes afterwards.</p>
+    <div class="list" id="h-list"></div>
   </section>
 
   <section id="page-advanced" hidden>
@@ -292,6 +326,7 @@
           <button class="btn small" id="btn-validate" disabled>Validate</button>
           <button class="btn small primary" id="btn-save" disabled>Save</button>
         </div>
+        <div id="problems"></div>
         <div id="pane-form" class="active"><div id="form"><p class="empty">Select a file on the left.</p></div></div>
         <div id="pane-raw"><textarea id="editor" spellcheck="false" disabled placeholder="Select a file…"></textarea></div>
       </section>
@@ -398,9 +433,11 @@ function showPage(name) {
   document.getElementById("page-connections").hidden = name !== "connections";
   document.getElementById("page-routing").hidden = name !== "routing";
   document.getElementById("page-advanced").hidden = name !== "advanced";
+  document.getElementById("page-history").hidden = name !== "history";
   clearTimeout(connTimer);
   if (name === "connections") loadConnections();
   else if (name === "routing") loadRouting();
+  else if (name === "history") loadHistory();
   else loadList();
 }
 document.querySelectorAll("nav.pages button").forEach(b => b.onclick = () => showPage(b.dataset.page));
@@ -425,6 +462,8 @@ document.getElementById("apply-btn").onclick = async () => {
       notes.push("Needs a restart of sijba: " + r.restart_required.join(", "));
     if (notes.length) toast("Applied. " + notes.join(" · "), "bad");
     else toast("Applied · " + (r.handlers || []).length + " handlers, " + (r.webhooks || []).length + " webhooks", "ok");
+    refreshStatus();
+    if (!document.getElementById("page-routing").hidden) loadRouting();
   } catch (e) {
     if (!(e instanceof AuthError)) toast("Apply failed: " + errText(e), "bad");
   } finally {
@@ -437,6 +476,7 @@ async function startApp() {
   document.getElementById("app").hidden = false;
   document.getElementById("conn-block").hidden = !connectorsEnabled;
   setPending(localStorage.getItem("sijba_pending_apply") === "1");
+  refreshStatus();
   showPage("connections");
 }
 
@@ -560,16 +600,22 @@ function renderConnector(entry, act) {
 
 async function loadHooks() {
   const box = document.getElementById("hooks");
-  let hooks;
+  let hooks, flows = null;
   try {
-    hooks = (await api("/api/webhooks")).webhooks;
+    [hooks, flows] = await Promise.all([
+      api("/api/webhooks").then(r => r.webhooks),
+      api("/api/routing").catch(e => { if (e instanceof AuthError) throw e; return null; }),
+    ]);
   } catch (e) {
     if (!(e instanceof AuthError)) box.innerHTML = '<p class="empty">' + esc(errText(e)) + "</p>";
     return;
   }
   box.innerHTML = "";
   if (!hooks.length) box.appendChild(el("p", {className: "empty"}, "No webhooks yet."));
-  for (const h of hooks) box.appendChild(hookRow(h));
+  for (const h of hooks) {
+    const src = "webhook:" + h.name;
+    box.appendChild(hookRow(h, flows ? flows.steps.filter(s => s.sources.includes(src)).length : null));
+  }
 
   const name = el("input", {type: "text", placeholder: "Name, e.g. shortcuts", autocomplete: "off"});
   const add = el("button", {className: "btn", type: "submit"}, "Add webhook");
@@ -580,18 +626,22 @@ async function loadHooks() {
     try {
       await api("/api/webhooks", {method: "POST", body: JSON.stringify({name: name.value})});
       setPending(true);
-      toast("Webhook added — press Apply changes to activate it", "ok");
+      toast("Webhook added — set up what happens with its messages (Set up routing), then Apply changes", "ok");
       loadHooks();
     } catch (err) { if (!(err instanceof AuthError)) toast(errText(err), "bad"); }
   });
   box.appendChild(form);
 }
 
-function hookRow(h) {
+function hookRow(h, steps) {
   const url = publicCoreUrl + "/webhook/" + h.token;
   const masked = publicCoreUrl + "/webhook/" + h.token.slice(0, 4) + "••••••";
   const urlEl = el("span", {className: "url"}, h.from_env ? "token comes from the environment" : masked);
   const row = el("div", {className: "row"}, el("span", {className: "name"}, h.name), urlEl);
+  if (steps === 0) row.appendChild(el("button", {className: "btn small primary", type: "button",
+    title: "Nothing happens with its messages yet", onClick: () => goToRouting("webhook:" + h.name, true)}, "Set up routing"));
+  else if (steps) row.appendChild(el("button", {className: "btn small ghost", type: "button",
+    onClick: () => goToRouting("webhook:" + h.name)}, "Routing · " + steps + (steps === 1 ? " step" : " steps")));
   if (!h.from_env) {
     let shown = false;
     row.appendChild(el("button", {className: "btn small", type: "button", onClick: async () => {
@@ -627,7 +677,7 @@ const SEND_TEXT = {rest: "text after the keyword", text: "whole message"};
 const CUSTOM = "__custom", OTHER = "__other";
 
 async function loadRouting() {
-  try { routing = await api("/api/routing"); }
+  try { routing = await api("/api/routing"); setStatusMap(routing.status); }
   catch (e) {
     if (!(e instanceof AuthError)) document.getElementById("r-flow").innerHTML = '<p class="empty">' + esc(errText(e)) + "</p>";
     return;
@@ -663,6 +713,16 @@ function renderRouting() {
   if (routing.core_error) notices.appendChild(el("div", {className: "notice"},
     "sijba is not reachable, so the list of connected agents is missing. Rules can still be edited."));
   for (const p of routing.problems) notices.appendChild(el("div", {className: "notice"}, "Not readable: " + p));
+  const own = routing.steps.filter(s => s.sources.includes(rSource));
+  if (!own.length && rEditing !== "new" && !rTemplate && rSource) {
+    const general = currentFlow().length;
+    notices.appendChild(el("div", {className: "notice"},
+      "Nothing is set up for messages from " + sourceLabel(rSource) + " yet"
+        + (general ? " — only steps for all sources run." : ", so they are not handled."),
+      el("div", {className: "actions"},
+        el("button", {type: "button", className: "btn small primary", onClick: () => { rTemplate = "list"; renderRouting(); }}, "Start from a template"),
+        el("button", {type: "button", className: "btn small", onClick: () => { rEditing = "new"; renderRouting(); }}, "Add rules"))));
+  }
 
   const box = document.getElementById("r-flow");
   box.innerHTML = "";
@@ -679,6 +739,37 @@ function renderRouting() {
   if (steps.length) box.appendChild(el("p", {className: "flow-end"}, "End — if no step handled it, the message gets no further."));
   document.getElementById("r-add").hidden = rEditing === "new";
   renderTemplates();
+  renderReplies();
+}
+
+function renderReplies() {
+  const box = document.getElementById("r-replies");
+  box.innerHTML = "";
+  const list = el("div", {className: "list"});
+  if (routing.self_delivering.includes(rSource))
+    list.appendChild(el("div", {className: "row"}, el("span", {className: "name"}, "sijba app"),
+      el("span", {className: "msg"}, "Replies show up in the chat.")));
+  for (const r of routing.replies.filter(r => !r.sources.length || r.sources.includes(rSource))) {
+    const row = el("div", {className: "row"}, el("span", {className: "name"}, r.id));
+    if (!r.sources.length) row.appendChild(el("span", {className: "tag"}, "all sources"));
+    if (r.connector) row.appendChild(el("span", {className: "msg", style: "flex:1"}, "Connector — managed under Connections"));
+    else {
+      row.appendChild(el("span", {className: "msg", style: "flex:1"}, r.note ? "Runs " + r.note : ""));
+      for (const p of problemsFor(r.file)) row.appendChild(el("span", {className: "tag bad", title: p.message}, "problem"));
+      row.appendChild(el("button", {type: "button", className: "btn small ghost",
+        onClick: () => { showPage("advanced"); openFile(r.file); }}, "Open in Advanced"));
+    }
+    list.appendChild(row);
+  }
+  if (list.children.length) box.appendChild(list);
+  else box.appendChild(el("div", {className: "notice"},
+    "Replies to messages from " + sourceLabel(rSource) + " have nowhere to go — they are not delivered."));
+}
+
+function goToRouting(source, templates) {
+  rSource = source; rEditing = null; rTemplate = templates ? "list" : null;
+  localStorage.setItem("sijba_routing_source", rSource);
+  showPage("routing");
 }
 
 function stepTitle(s) {
@@ -726,6 +817,11 @@ function stepCard(s, i, steps) {
   head.appendChild(ops);
   card.appendChild(head);
 
+  const probs = problemsFor(s.file).concat(s.routes_file ? problemsFor(s.routes_file) : []);
+  if (probs.length) {
+    head.insertBefore(el("span", {className: "tag bad"}, "problem"), head.querySelector(".step-ops"));
+    card.appendChild(problemBox(probs));
+  }
   if (s.kind === "rules" && s.rules) {
     if (rEditing === s.file) card.appendChild(stepEditor(s, steps));
     else card.appendChild(rulesList(s.rules));
@@ -1015,6 +1111,133 @@ function templateForm(p) {
   return form;
 }
 
+/* ---------- problems per file ---------- */
+
+let fileStatus = {};
+const PROBLEM_PREFIX = {check: "", sijba: "sijba did not load it: ", running: ""};
+
+function problemsFor(path) { return (path && fileStatus[path]) || []; }
+
+function problemBox(probs) {
+  return el("div", {className: "problems"}, ...probs.map(p => el("div", {},
+    PROBLEM_PREFIX[p.source] + p.message + (p.source === "sijba" ? " (stays until fixed and applied)" : ""))));
+}
+
+function setStatusMap(files) {
+  fileStatus = files || {};
+  const advanced = document.querySelector('nav.pages button[data-page="advanced"]');
+  advanced.classList.toggle("has-problems", Object.keys(fileStatus).length > 0);
+  advanced.title = Object.keys(fileStatus).length ? "Some config files have problems" : "";
+  document.querySelectorAll("#files button[data-path]").forEach(b => {
+    const probs = problemsFor(b.dataset.path);
+    b.classList.toggle("bad", probs.length > 0);
+    b.title = probs.map(p => p.message).join("\n");
+  });
+  renderFileProblems();
+}
+
+function renderFileProblems() {
+  const box = document.getElementById("problems");
+  box.innerHTML = "";
+  const probs = problemsFor(current);
+  if (probs.length) box.appendChild(problemBox(probs));
+}
+
+async function refreshStatus() {
+  try { setStatusMap((await api("/api/status")).files); } catch (e) { /* shown on the next load */ }
+}
+
+/* ---------- history ---------- */
+
+const ACTION_TEXT = {added: "added", changed: "changed", deleted: "deleted"};
+
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return isNaN(d) ? ts : d.toLocaleString(undefined, {dateStyle: "short", timeStyle: "short"});
+}
+
+async function loadHistory() {
+  const box = document.getElementById("h-list");
+  let changes;
+  try { changes = (await api("/api/history?limit=100")).changes; }
+  catch (e) { if (!(e instanceof AuthError)) box.innerHTML = '<p class="empty">' + esc(errText(e)) + "</p>"; return; }
+  box.innerHTML = "";
+  if (!changes.length) box.appendChild(el("p", {className: "empty"}, "No changes yet."));
+  for (const c of changes) box.appendChild(historyItem(c));
+}
+
+function historyItem(c) {
+  const item = el("div", {className: "h-item"});
+  const detail = el("div", {className: "h-detail"});
+  detail.hidden = true;
+  const files = c.files.length === 1 ? c.files[0].path : c.files.length + " files";
+  const toggle = el("button", {type: "button", className: "btn small", onClick: async () => {
+    detail.hidden = !detail.hidden;
+    toggle.textContent = detail.hidden ? "Show" : "Hide";
+    if (!detail.hidden && !detail.children.length) await renderChange(c.id, detail);
+  }}, "Show");
+  item.append(el("div", {className: "h-row"}, el("span", {className: "when"}, fmtTime(c.ts)),
+    el("span", {className: "label"}, c.label), el("span", {className: "msg"}, files), toggle), detail);
+  return item;
+}
+
+async function renderChange(id, box) {
+  let c;
+  try { c = await api("/api/history/" + encodeURIComponent(id)); }
+  catch (e) { if (!(e instanceof AuthError)) box.appendChild(el("p", {className: "msg bad"}, errText(e))); return; }
+  for (const f of c.files) {
+    box.appendChild(el("div", {className: "h-file"}, el("span", {}, f.path),
+      el("span", {className: "tag" + (f.action === "deleted" ? " bad" : f.action === "added" ? " go" : "")}, ACTION_TEXT[f.action]),
+      f.changed_since ? el("span", {className: "tag", title: "Undo also discards the later edits"}, "edited again since") : null));
+    box.appendChild(diffView(f.before || "", f.after || ""));
+  }
+  const later = c.files.some(f => f.changed_since);
+  box.appendChild(el("div", {className: "actions"}, el("button", {type: "button", className: "btn", onClick: async () => {
+    if (!confirm("Undo “" + c.label + "”? The files go back to how they were before it."
+      + (later ? "\n\nSome of them were edited again since — those later edits are lost too." : ""))) return;
+    try {
+      await api("/api/history/" + encodeURIComponent(id) + "/undo", {method: "POST"});
+      setPending(true);
+      toast("Undone — press Apply changes to use it", "ok");
+      loadHistory();
+      refreshStatus();
+    } catch (e) { if (!(e instanceof AuthError)) toast(errText(e), "bad"); }
+  }}, "Undo this change")));
+}
+
+function lineDiff(a, b) {
+  const x = a.split("\n"), y = b.split("\n");
+  const n = x.length, m = y.length;
+  if (n * m > 4e6) return [...x.map(l => ["del", l]), ...y.map(l => ["add", l])];
+  const lcs = Array.from({length: n + 1}, () => new Uint32Array(m + 1));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      lcs[i][j] = x[i] === y[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+  const out = [];
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (x[i] === y[j]) { out.push(["ctx", x[i]]); i++; j++; }
+    else if (lcs[i + 1][j] >= lcs[i][j + 1]) out.push(["del", x[i++]]);
+    else out.push(["add", y[j++]]);
+  }
+  while (i < n) out.push(["del", x[i++]]);
+  while (j < m) out.push(["add", y[j++]]);
+  return out;
+}
+
+function diffView(before, after) {
+  const box = el("div", {className: "diff"});
+  const lines = lineDiff(before, after);
+  const near = lines.map((l, k) => lines.slice(Math.max(0, k - 3), k + 4).some(x => x[0] !== "ctx"));
+  let gap = false;
+  lines.forEach(([op, text], k) => {
+    if (op === "ctx" && !near[k]) { if (!gap) box.appendChild(el("div", {className: "gap"}, "…")); gap = true; return; }
+    gap = false;
+    box.appendChild(el("div", {className: op}, (op === "add" ? "+ " : op === "del" ? "- " : "  ") + text));
+  });
+  return box;
+}
+
 /* ---------- advanced: file editor ---------- */
 
 let current = null;
@@ -1071,6 +1294,8 @@ async function loadList() {
       const label = f.path.replace(/^(handlers|routes)\//, "");
       const b = el("button", {type: "button", "data-path": f.path}, label);
       if (f.path === current) b.classList.add("active");
+      const probs = problemsFor(f.path);
+      if (probs.length) { b.classList.add("bad"); b.title = probs.map(p => p.message).join("\n"); }
       b.onclick = () => openFile(f.path);
       nav.appendChild(b);
     }
@@ -1086,6 +1311,7 @@ async function openFile(path) {
   document.getElementById("btn-del").hidden = kind === "core";
   document.getElementById("cur-path").textContent = path;
   document.querySelectorAll("#files button").forEach(b => b.classList.toggle("active", b.dataset.path === path));
+  renderFileProblems();
   try {
     const data = await api("/api/files/" + encodeURI(path));
     const ed = document.getElementById("editor");
@@ -1398,6 +1624,7 @@ document.getElementById("btn-save").onclick = async () => {
     await api("/api/files/" + encodeURI(current), {method: "PUT", body: JSON.stringify({content, backup: true})});
     setStatus("Saved", "ok");
     setPending(true);
+    refreshStatus();
     toast("Saved — press Apply changes to use it", "ok");
   } catch (e) { if (!(e instanceof AuthError)) setStatus(errText(e), "bad"); }
 };
@@ -1437,6 +1664,7 @@ function resetEditor(msg) {
   document.getElementById("btn-dup").hidden = true;
   document.getElementById("btn-del").hidden = true;
   document.querySelectorAll("#files button").forEach(b => b.classList.remove("active"));
+  renderFileProblems();
   if (mode !== "form") { parseError = null; mode = "raw"; setMode("form"); }
   document.getElementById("form").innerHTML = msg ? '<p class="empty">' + esc(msg) + "</p>" : "";
 }
@@ -1478,6 +1706,7 @@ function newHandlerForm(copyOf) {
       toast("Created " + path + " — press Apply changes to use it", "ok");
       await loadList();
       await openFile(path);
+      refreshStatus();
     } catch (err) {
       if (err instanceof AuthError) return;
       msg.className = "msg bad"; msg.textContent = errText(err);
@@ -1503,6 +1732,7 @@ document.getElementById("btn-del").onclick = async () => {
     toast("Deleted " + current + " — press Apply changes", "ok");
     resetEditor("Select a file on the left.");
     loadList();
+    refreshStatus();
   } catch (e) { if (!(e instanceof AuthError)) setStatus(errText(e), "bad"); }
 };
 
