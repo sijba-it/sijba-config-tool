@@ -60,14 +60,34 @@ Open `http://localhost:8081/`.
 | `PUT`/`DELETE` | `/api/routing/steps/{path}` | save / remove a rules step |
 | `POST` | `/api/routing/move` | `{source, file, index}` — reorder within a source's flow |
 | `POST`/`DELETE` | `/api/routing/presets/{id}` | apply a template (`{variant, params}`) / remove it (`?source=`) |
+| `GET` | `/api/status` | problems per file: own checks, files Core skipped (`/api/admin/load-errors`), handlers Core reports degraded/stopped |
+| `GET` | `/api/history` | recorded changes, newest first |
+| `GET` | `/api/history/{id}` | one change with before/after contents |
+| `POST` | `/api/history/{id}/undo` | put the files back as they were before that change (recorded as a new change) |
 
-The UI has three pages: **Connections** (connectors, webhooks), **Routing**
+The UI has four pages: **Connections** (connectors, webhooks — a webhook
+without routing steps offers "Set up routing"), **Routing**, **History**
 and **Advanced** (the file editor, with "+ New handler" from a starter —
 plugin script, LLM router, HTTP service, outbound — plus Duplicate / Delete). Saving a file or webhook marks "Apply changes"; applying
 reloads Core without a restart and reports files it skipped and settings that
 still need a restart (`port`, `db_path`, …).
 
 If `ROOT_PATH` is set (k8s: `/config-ui`), all of the above are under that prefix.
+
+## History
+
+Every write and delete through the tool is recorded under
+`<config>/.history/` (`log.jsonl` + content-addressed `blobs/`, last 300
+changes). Writes from one action (a template, a move) form one change. Undo
+restores the "before" state of a change, even a broken one, and is itself
+recorded. The folder is hidden from the file API and from Core.
+
+## Problems per file
+
+Files with problems get a red dot (Advanced, the nav tab, Routing steps) until
+fixed: the tool's own validation, files Core skipped at its last load (shown
+only while the own check is clean — i.e. fixed but not yet applied), and
+persistent handlers Core reports as degraded / stopped / restarting.
 
 ## Routing page
 
@@ -80,7 +100,9 @@ or the existing `ROUTES_FILE` under `routes/`). A route that doesn't round-trip
 exactly stays an expert rule (raw regex / Jinja template); nothing hand-written
 is rewritten. "Continue afterwards" = `ON_MATCH_CONTINUE` (copy/tee). Other
 handlers (LLM router, plugins) are listed and can be reordered but are edited
-under Advanced.
+under Advanced. Below the flow, "Replies" lists where answers to that source go
+(outbound handler files, connectors registered at runtime, the app for
+`web`/`app`) — display only.
 
 Reordering sets a priority between the new neighbours and renames the file
 (`NN.N-id.json`). Templates (`presets.py`) write ordinary rules steps tagged

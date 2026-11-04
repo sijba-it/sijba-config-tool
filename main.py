@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 import presets
 import routing
+import status
 from codec import parse_content, serialize_content
 from fs_backend import ConfigError, FsBackend
 from provisioner import Provisioner, ProvisionerError
@@ -197,7 +198,8 @@ def webhooks_add(body: WebhookBody):
         raise HTTPException(409, f"webhook {name!r} exists")
     hooks[name] = secrets.token_urlsafe(24)
     data["webhooks"] = hooks
-    _save_core_yaml(data)
+    with backend.history.change(f"Webhook {name} added"):
+        _save_core_yaml(data)
     return {"name": name, "token": hooks[name], "from_env": False}
 
 
@@ -212,8 +214,55 @@ def webhooks_delete(name: str):
         data["webhooks"] = hooks
     else:
         data.pop("webhooks", None)
-    _save_core_yaml(data)
+    with backend.history.change(f"Webhook {name} removed"):
+        _save_core_yaml(data)
     return {"ok": True}
+
+
+def _step_name(path: str) -> str:
+    return re.sub(r"^\d+(\.\d+)?-", "", Path(path).stem)
+
+
+@api.get("/api/history", dependencies=[Depends(_check_auth)])
+def history_list(limit: int = 50):
+    return {"changes": backend.history.list(max(1, min(limit, 300)))}
+
+
+def _current(paths: list[str]) -> dict:
+    out = {}
+    for p in paths:
+        try:
+            out[p] = backend.read_or_none(p)
+        except ConfigError:
+            out[p] = None
+    return out
+
+
+def _history_entry(change_id: str) -> dict:
+    try:
+        paths = [f["path"] for f in backend.history.get(change_id, {})["files"]]
+        return backend.history.get(change_id, _current(paths))
+    except KeyError:
+        raise HTTPException(404, "change not found")
+
+
+@api.get("/api/history/{change_id}", dependencies=[Depends(_check_auth)])
+def history_get(change_id: str):
+    return _history_entry(change_id)
+
+
+@api.post("/api/history/{change_id}/undo", dependencies=[Depends(_check_auth)])
+def history_undo(change_id: str):
+    """Put every file of a change back to how it was before it."""
+    entry = _history_entry(change_id)
+    with backend.history.change("Undo: " + entry["label"]):
+        for f in entry["files"]:
+            if f["before"] is None:
+                if backend.read_or_none(f["path"]) is not None:
+                    backend.delete(f["path"], backup=False)
+            else:
+                backend.put(f["path"], f["before"], backup=False, validate=False)
+    return {"ok": True, "files": [f["path"] for f in entry["files"]]}
 
 
 def _core_get(path: str) -> Any:
@@ -224,22 +273,51 @@ def _core_get(path: str) -> Any:
         return json.loads(r.read() or b"null")
 
 
+def _core_try(path: str) -> tuple[Any, str | None]:
+    try:
+        return _core_get(path), None
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        return None, str(exc)
+
+
+def _file_status(all_steps: list[dict]) -> tuple[dict, list[dict] | None, str | None]:
+    """(problems per file, Core's handler list, Core error). Core may be an older
+    version without /api/admin/load-errors — then only the tool's own checks."""
+    handlers, err = _core_try("/api/handlers")
+    load, _ = _core_try("/api/admin/load-errors") if err is None else (None, None)
+    states = {h["id"]: h.get("state") for h in handlers or [] if isinstance(h, dict) and "id" in h}
+    errors = (load or {}).get("errors") if isinstance(load, dict) else None
+    return status.collect(backend, all_steps, errors, states), handlers, err
+
+
+@api.get("/api/status", dependencies=[Depends(_check_auth)])
+def file_status():
+    """Problems per config file: own checks, files sijba skipped, handlers not running."""
+    all_steps, _ = routing.load_steps(backend, direction=None)
+    files, _, err = _file_status(all_steps)
+    return {"files": files, "core_error": err}
+
+
 @api.get("/api/routing", dependencies=[Depends(_check_auth)])
 def routing_overview():
-    """Everything the Routing page needs: steps in order, sources, targets, templates."""
-    steps, problems = routing.load_steps(backend)
-    core_error = None
-    try:
-        channels = _core_get("/api/plugin/channels") or []
-    except (urllib.error.URLError, OSError, ValueError) as exc:
-        channels, core_error = [], f"Core unreachable, connected agents unknown: {exc}"
+    """Everything the Routing page needs: steps in order, sources, targets, templates,
+    where replies go, and problems per file."""
+    all_steps, problems = routing.load_steps(backend, direction=None)
+    steps = [x for x in all_steps if x["direction"] == "inbound"]
+    outbound = [x for x in all_steps if x["direction"] == "outbound"]
+    files, core_handlers, err = _file_status(all_steps)
+    channels, ch_err = _core_try("/api/plugin/channels") if err is None else (None, err)
+    core_error = f"Core unreachable, connected agents unknown: {ch_err}" if ch_err else None
     hooks = list((_core_yaml().get("webhooks") or {}).keys())
     return {
         "steps": steps,
         "problems": problems,
         "sources": routing.list_sources([str(h) for h in hooks], steps),
-        "targets": routing.list_targets(channels, steps),
+        "targets": routing.list_targets(channels or [], steps),
         "presets": presets.PRESETS,
+        "replies": routing.replies(outbound, core_handlers),
+        "self_delivering": list(routing.SELF_DELIVERING),
+        "status": files,
         "core_error": core_error,
     }
 
@@ -254,17 +332,20 @@ class StepBody(BaseModel):
 
 @api.post("/api/routing/steps", dependencies=[Depends(_check_auth)])
 def routing_step_add(body: StepBody):
-    return routing.save_step(backend, body.model_dump())
+    with backend.history.change("Routing: rules step added"):
+        return routing.save_step(backend, body.model_dump())
 
 
 @api.put("/api/routing/steps/{path:path}", dependencies=[Depends(_check_auth)])
 def routing_step_save(path: str, body: StepBody):
-    return routing.save_step(backend, {**body.model_dump(), "file": path})
+    with backend.history.change(f"Routing: rules of {_step_name(path)} changed"):
+        return routing.save_step(backend, {**body.model_dump(), "file": path})
 
 
 @api.delete("/api/routing/steps/{path:path}", dependencies=[Depends(_check_auth)])
 def routing_step_delete(path: str):
-    routing.delete_step(backend, path)
+    with backend.history.change(f"Routing: step {_step_name(path)} removed"):
+        routing.delete_step(backend, path)
     return {"ok": True}
 
 
@@ -276,7 +357,8 @@ class MoveBody(BaseModel):
 
 @api.post("/api/routing/move", dependencies=[Depends(_check_auth)])
 def routing_move(body: MoveBody):
-    return routing.move_step(backend, body.source, body.file, body.index)
+    with backend.history.change(f"Routing: {_step_name(body.file)} moved"):
+        return routing.move_step(backend, body.source, body.file, body.index)
 
 
 class PresetBody(BaseModel):
@@ -286,12 +368,14 @@ class PresetBody(BaseModel):
 
 @api.post("/api/routing/presets/{preset_id}", dependencies=[Depends(_check_auth)])
 def routing_preset_apply(preset_id: str, body: PresetBody):
-    return {"steps": presets.apply_preset(backend, preset_id, body.variant, body.params)}
+    with backend.history.change(f"Routing: template {preset_id} added"):
+        return {"steps": presets.apply_preset(backend, preset_id, body.variant, body.params)}
 
 
 @api.delete("/api/routing/presets/{preset_id}", dependencies=[Depends(_check_auth)])
 def routing_preset_remove(preset_id: str, source: str):
-    return {"removed": presets.remove_preset(backend, preset_id, source)}
+    with backend.history.change(f"Routing: template {preset_id} removed from {source}"):
+        return {"removed": presets.remove_preset(backend, preset_id, source)}
 
 
 class ConnectorBody(BaseModel):

@@ -204,6 +204,7 @@ def _step(backend: FsBackend, rel: str, handler: dict) -> dict:
         "sources": list(match.get("source") or []),
         "only_matching": bool(match.get("regex")),
         "kind": _kind(handler),
+        "direction": handler.get("direction", "inbound"),
         "preset": presets[0] if presets else None,
         "editable": False,
         "note": "",
@@ -227,8 +228,9 @@ def _handler_files(backend: FsBackend) -> list[str]:
     return [f["path"] for f in backend.list_files() if f["kind"] == "handler"]
 
 
-def load_steps(backend: FsBackend) -> tuple[list[dict], list[str]]:
-    """Inbound handlers in Core's order (priority, then filename) + unreadable files."""
+def load_steps(backend: FsBackend, direction: str | None = "inbound") -> tuple[list[dict], list[str]]:
+    """Handlers of one direction (None: all) in Core's order (priority, then
+    filename) + unreadable files."""
     steps, problems = [], []
     for rel in _handler_files(backend):
         try:
@@ -239,7 +241,7 @@ def load_steps(backend: FsBackend) -> tuple[list[dict], list[str]]:
         if not isinstance(handler, dict):
             problems.append(f"{rel}: not a JSON object")
             continue
-        if handler.get("direction", "inbound") != "inbound":
+        if direction and handler.get("direction", "inbound") != direction:
             continue
         steps.append(_step(backend, rel, handler))
     steps.sort(key=lambda s: (s["priority"], s["file"]))
@@ -461,4 +463,21 @@ def list_targets(channels: list[dict], steps: list[dict]) -> list[dict]:
             if t and t.lower() not in seen:
                 seen.add(t.lower())
                 out.append({"mention": t, "label": t, "channel_id": "", "online": False})
+    return out
+
+
+# ---------------------------------------------------------------- replies
+
+SELF_DELIVERING = ("web", "app")  # Core shows these replies in the sijba app itself
+
+
+def replies(outbound_files: list[dict], core_handlers: list[dict] | None) -> list[dict]:
+    """Outbound handlers: files, plus handlers registered at runtime (connectors)."""
+    out = [{"id": s["id"], "sources": s["sources"], "file": s["file"], "note": s["note"],
+            "connector": False} for s in outbound_files]
+    known = {r["id"] for r in out}
+    for h in core_handlers or []:
+        if h.get("direction") == "outbound" and h.get("dynamic") and h.get("id") not in known:
+            out.append({"id": h["id"], "sources": list((h.get("match") or {}).get("source") or []),
+                        "file": None, "note": "", "connector": True})
     return out
