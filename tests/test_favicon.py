@@ -14,3 +14,12 @@ def test_favicon_served_and_linked(monkeypatch, tmp_path):
     html = c.get("/config-ui/").text
     assert 'href="/config-ui/favicon.png"' in html
     assert 'href="/config-ui/apple-touch-icon.png"' in html
+
+
+def test_favicon_ico_at_root_and_under_prefix(monkeypatch, tmp_path):
+    m = load_app(monkeypatch, tmp_path, ROOT_PATH="/config-ui", SIJBA_AUTH_TOKEN="secret")
+    c = TestClient(m.app)
+    for path in ("/favicon.ico", "/config-ui/favicon.ico"):
+        r = c.get(path)
+        assert r.status_code == 200 and r.headers["content-type"] == "image/x-icon"
+        assert r.content[:4] == b"\x00\x00\x01\x00"  # ICO header
