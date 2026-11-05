@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 import presets
@@ -411,6 +411,21 @@ def connectors_put(ctype: str, body: ConnectorBody):
 @api.delete("/api/connectors/{ctype}", dependencies=[Depends(_check_auth)])
 def connectors_delete(ctype: str):
     return _need_provisioner().delete(ctype)
+
+
+STATIC_DIR = Path(__file__).parent / "static"
+
+
+@api.get("/favicon.png", include_in_schema=False)
+def favicon():
+    return FileResponse(STATIC_DIR / "favicon.png", media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+
+@api.get("/apple-touch-icon.png", include_in_schema=False)
+def apple_touch_icon():
+    return FileResponse(STATIC_DIR / "apple-touch-icon.png", media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})
 
 
 @api.get("/", response_class=HTMLResponse)
