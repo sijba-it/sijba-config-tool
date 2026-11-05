@@ -422,6 +422,17 @@ def favicon():
                         headers={"Cache-Control": "public, max-age=86400"})
 
 
+def _favicon_ico():
+    return FileResponse(STATIC_DIR / "favicon.ico", media_type="image/x-icon",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+
+# Browsers ask for /favicon.ico at the site root (Core's side of the ingress), not under
+# ROOT_PATH. Serve it in both places; the ingress routes the root path to this service.
+api.get("/favicon.ico", include_in_schema=False)(_favicon_ico)
+app.get("/favicon.ico", include_in_schema=False)(_favicon_ico)
+
+
 @api.get("/apple-touch-icon.png", include_in_schema=False)
 def apple_touch_icon():
     return FileResponse(STATIC_DIR / "apple-touch-icon.png", media_type="image/png",
