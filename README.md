@@ -131,7 +131,7 @@ docker push REDACTED-REGISTRY/sijba-config-tool:manual
 
 Runs as a **sidecar** in the sijba StatefulSet, sharing `pvc-sijba-data`.
 Config lives at `/data/config` (seeded once from the ConfigMap). UI:
-`https://sijba.edv-bartl.at/config-ui/`.
+`https://<account>.sijba.eu/config-ui/`.
 
 ## Intentionally not here
 
