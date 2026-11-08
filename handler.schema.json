@@ -6,9 +6,8 @@
   "properties": {
     "id": {"type": "string", "minLength": 1},
     "priority": {"type": "number"},
-    "direction": {"type": "string", "enum": ["inbound", "outbound", "source"]},
+    "direction": {"type": "string", "enum": ["inbound", "outbound"]},
     "category": {"type": "array", "items": {"type": "string"}},
-    "lifecycle": {"type": "string", "enum": ["per_message", "persistent"]},
     "type": {"type": "string", "enum": ["exec_json", "http"]},
     "required": {"type": "boolean"},
     "await_response": {"type": "boolean"},
@@ -27,36 +26,23 @@
     "timeout_seconds": {"type": "number"},
     "context": {
       "type": "object",
-      "description": "If set, core loads context from the store before invoking the plugin and saves context_update from the response.",
       "properties": {
-        "namespace": {"type": "string", "description": "Store namespace (defaults to handler id)"},
-        "key": {"type": "string", "description": "Field from source_meta to use as store key (default: chat_id)"}
+        "namespace": {"type": "string"},
+        "key": {"type": "string"}
       },
       "additionalProperties": false
     },
     "env": {
       "type": "object",
-      "description": "Extra environment variables passed to the spawned process. Values support ${VAR} substitution from the host environment.",
       "additionalProperties": {"type": "string"}
     },
-    "router_hint": {
-      "type": "string",
-      "description": "Short description + example commands for the router LLM to understand when to route to this handler."
-    },
-    "receive_handler_context": {
-      "type": "boolean",
-      "description": "If true, core injects a 'handlers' summary (id + router_hint) into the envelope before invoking this plugin."
-    },
-    "shared_process": {
-      "type": "string",
-      "description": "ID of another persistent handler whose process to reuse instead of spawning a new one."
-    },
+    "router_hint": {"type": "string"},
+    "receive_handler_context": {"type": "boolean"},
     "startup": {
       "type": "object",
       "properties": {
         "url": {"type": "string"},
-        "invoke_path": {"type": "string"},
-        "restart_policy": {"type": "string", "enum": ["always", "on_failure", "never"]}
+        "invoke_path": {"type": "string"}
       },
       "additionalProperties": false
     }

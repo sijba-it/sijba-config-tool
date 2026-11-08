@@ -87,7 +87,7 @@ recorded. The folder is hidden from the file API and from Core.
 Files with problems get a red dot (Advanced, the nav tab, Routing steps) until
 fixed: the tool's own validation, files Core skipped at its last load (shown
 only while the own check is clean — i.e. fixed but not yet applied), and
-persistent handlers Core reports as degraded / stopped / restarting.
+handlers Core reports as degraded / stopped.
 
 ## Routing page
 

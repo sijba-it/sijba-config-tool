@@ -16,14 +16,14 @@ VOICE_ROUTES = [
     {"pattern": "^(recherche|recherchiere)\\b\\s*[:,-]?\\s*", "inject": "@Recherche {{ rest }}"},
 ]
 TEE = {
-    "id": "voice-tee", "priority": 10.0, "direction": "inbound", "lifecycle": "per_message",
+    "id": "voice-tee", "priority": 10.0, "direction": "inbound",
     "type": "exec_json", "exec": "{sijba_plugins}/regex-router/main.py",
     "match": {"source": ["webhook:voice"]}, "continue_on_match": True, "timeout_seconds": 10,
     "env": {"ROUTES": "[{\"pattern\":\".*\",\"inject\":\"@obsidian [voice] {{ text }}\"}]",
             "ON_MATCH_CONTINUE": "true"},
 }
 ROUTER = {
-    "id": "router-regex", "priority": 70.0, "direction": "inbound", "lifecycle": "per_message",
+    "id": "router-regex", "priority": 70.0, "direction": "inbound",
     "type": "exec_json", "exec": "{sijba_plugins}/regex-router/main.py",
     "match": {"source": ["webhook:voice"]}, "continue_on_match": False, "timeout_seconds": 10,
     "env": {"ROUTES_FILE": "/data/config/routes/routes-voice.json"},

@@ -6,7 +6,7 @@ Three sources:
   sijba    files Core skipped at its last load (`/api/admin/load-errors`) —
            stays until the next Apply after the fix; hidden while `check`
            already reports the file
-  running  persistent handlers Core reports as degraded / stopped / restarting
+  running  handlers Core reports as degraded / stopped
 """
 from __future__ import annotations
 

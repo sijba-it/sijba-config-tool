@@ -1385,15 +1385,14 @@ const HANDLER_BOOLS = ["required", "await_response", "allow_direct_inject", "con
 
 function renderHandlerForm(data) {
   const wrap = el("div", {});
-  ["id", "priority", "direction", "type", "lifecycle", "exec", "timeout_seconds", "router_hint", "match", "env",
-   "category", "args", "shared_process", "context", "startup", ...HANDLER_BOOLS].forEach(k => knownKeys.add(k));
+  ["id", "priority", "direction", "type", "exec", "timeout_seconds", "router_hint", "match", "env",
+   "category", "args", "context", "startup", ...HANDLER_BOOLS].forEach(k => knownKeys.add(k));
 
   wrap.appendChild(section("Basics", el("div", {className: "grid"},
     field("id", textInput(data.id, {id: "h-id"})),
     field("priority", numInput(data.priority, {id: "h-priority"})),
-    field("direction", selectInput(data.direction || "inbound", ["inbound", "outbound", "source"], "h-direction")),
+    field("direction", selectInput(data.direction || "inbound", ["inbound", "outbound"], "h-direction")),
     field("type", selectInput(data.type || "exec_json", ["exec_json", "http"], "h-type")),
-    field("lifecycle", selectInput(data.lifecycle || "per_message", ["per_message", "persistent"], "h-lifecycle")),
     field("timeout_seconds", numInput(data.timeout_seconds, {id: "h-timeout"})),
     wide("exec", textInput(data.exec, {id: "h-exec"})),
   )));
@@ -1427,12 +1426,10 @@ function renderHandlerForm(data) {
   adv.appendChild(el("div", {className: "grid"},
     wide("category (comma-separated)", textInput((data.category || []).join(", "), {id: "h-category"})),
     wide("args (comma-separated)", textInput((data.args || []).join(", "), {id: "h-args"})),
-    field("shared_process", textInput(data.shared_process, {id: "h-shared"})),
     field("context.namespace", textInput(ctx.namespace, {id: "h-ctx-ns"})),
     field("context.key", textInput(ctx.key, {id: "h-ctx-key"})),
     field("startup.url", textInput(st.url, {id: "h-st-url"})),
     field("startup.invoke_path", textInput(st.invoke_path, {id: "h-st-path"})),
-    field("startup.restart_policy", selectInput(st.restart_policy || "", ["", "always", "on_failure", "never"], "h-st-pol")),
   ));
   wrap.appendChild(adv);
   return wrap;
@@ -1465,7 +1462,6 @@ function syncHandlerFormToModel() {
   if (val("h-priority") !== "") next.priority = Number(val("h-priority"));
   next.direction = val("h-direction");
   next.type = val("h-type");
-  next.lifecycle = val("h-lifecycle");
   if (val("h-exec").trim()) next.exec = val("h-exec").trim();
   if (val("h-timeout") !== "") next.timeout_seconds = Number(val("h-timeout"));
   const regex = val("h-regex");
@@ -1486,7 +1482,6 @@ function syncHandlerFormToModel() {
   if (cat.length) next.category = cat;
   const args = splitList(val("h-args"));
   if (args.length) next.args = args;
-  if (val("h-shared").trim()) next.shared_process = val("h-shared").trim();
   const ns = val("h-ctx-ns").trim(), key = val("h-ctx-key").trim();
   if (ns || key) { next.context = {}; if (ns) next.context.namespace = ns; if (key) next.context.key = key; }
   const url = val("h-st-url").trim(), path = val("h-st-path").trim(), pol = val("h-st-pol");
@@ -1640,18 +1635,18 @@ document.getElementById("editor").addEventListener("keydown", (e) => {
 
 const HANDLER_STARTERS = {
   plugin: {label: "Plugin script", data: {
-    direction: "inbound", lifecycle: "per_message", type: "exec_json",
+    direction: "inbound", type: "exec_json",
     exec: "{sijba_plugins}/my-plugin/main.py", timeout_seconds: 10}},
   llm: {label: "LLM router", data: {
-    direction: "inbound", lifecycle: "per_message", type: "exec_json",
+    direction: "inbound", type: "exec_json",
     exec: "{sijba_plugins}/llm-router/main.py", receive_handler_context: true, continue_on_match: false,
     timeout_seconds: 30, env: {LLM_API_URL: "https://openrouter.ai/api/v1", LLM_API_KEY: "${OPENROUTER_API_KEY}",
       LLM_MODEL: "openai/gpt-4.1-nano", LLM_TEMPERATURE: "0"}}},
   http: {label: "HTTP service", data: {
-    direction: "inbound", lifecycle: "persistent", type: "http", timeout_seconds: 30,
-    startup: {url: "http://my-service:8000", invoke_path: "/invoke", restart_policy: "never"}}},
+    direction: "inbound", type: "http", timeout_seconds: 30,
+    startup: {url: "http://my-service:8000", invoke_path: "/invoke"}}},
   outbound: {label: "Outbound (replies)", data: {
-    direction: "outbound", lifecycle: "per_message", type: "exec_json",
+    direction: "outbound", type: "exec_json",
     exec: "{sijba_plugins}/my-plugin/main.py", timeout_seconds: 10}},
 };
 

@@ -294,7 +294,6 @@ def _new_handler(handler_id: str, priority: float) -> dict:
         "id": handler_id,
         "priority": priority,
         "direction": "inbound",
-        "lifecycle": "per_message",
         "type": "exec_json",
         "exec": REGEX_ROUTER_EXEC,
         "timeout_seconds": 10,
