@@ -66,6 +66,7 @@
   header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: .5rem;
            padding: .6rem 1rem; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
   header .brand { font-weight: 700; font-size: 1.1rem; margin-right: .75rem; }
+  .menu-only { display: none; }
   .menu-btn { display: none; background: transparent; border: 1px solid var(--border); color: var(--text); font-size: 1.2rem;
               line-height: 1; padding: .35rem .6rem; border-radius: 8px; }
   nav.pages { display: flex; gap: .25rem; }
@@ -245,6 +246,9 @@
     header .brand { margin-right: .25rem; }
     /* phone: hamburger button + dropdown list under the top bar */
     header { flex-wrap: nowrap; }
+    header > .btn { white-space: nowrap; }
+    #logout-btn { display: none; }               /* "Sign out" lives in the dropdown on phones */
+    nav.pages .menu-only { display: block; color: var(--bad); }
     .menu-btn { display: inline-block; }
     nav.pages { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; gap: 0;
                 background: var(--panel); border-bottom: 1px solid var(--border); box-shadow: 0 8px 18px rgba(0,0,0,.18); }
@@ -284,6 +288,7 @@
       <button type="button" data-page="agents">Agents</button>
       <button type="button" data-page="history">History</button>
       <button type="button" data-page="advanced">Advanced</button>
+      <button type="button" class="menu-only" id="logout-menu">Sign out</button>
     </nav>
     <span class="spacer"></span>
     <button class="btn" id="apply-btn" type="button" title="Load saved config files into the running sijba">Apply changes</button>
@@ -479,7 +484,8 @@ function showPage(name) {
   else if (name === "history") loadHistory();
   else loadList();
 }
-document.querySelectorAll("nav.pages button").forEach(b => b.onclick = () => showPage(b.dataset.page));
+document.querySelectorAll("nav.pages button[data-page]").forEach(b => b.onclick = () => showPage(b.dataset.page));
+document.getElementById("logout-menu").onclick = () => document.getElementById("logout-btn").click();
 document.getElementById("a-to-routing").onclick = (e) => { e.preventDefault(); showPage("routing"); };
 
 function setPending(on) {
