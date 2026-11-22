@@ -227,31 +227,42 @@ def test_between(prev, nxt, want):
 
 # ---- templates
 
-def test_voice_template_with_copy_and_remove(cfg):
+def test_voice_template_keywords_plus_rest_and_remove(cfg):
     c, d = cfg
     r = c.post("/api/routing/presets/voice-notes", headers=AUTH, json={
-        "variant": "copy",
+        "variant": "rest",
         "params": {"source": "webhook:pebble", "target": "@obsidian", "task": "", "appointment": "termin"}})
     assert r.status_code == 200, r.text
     files = [s["file"] for s in r.json()["steps"]]
-    assert files == ["handlers/10.0-webhook-pebble-voice-notes-copy.json",
-                     "handlers/70.0-webhook-pebble-voice-notes-keywords.json"]
-    copy, keywords = (_read(d, f) for f in files)
-    assert copy["category"] == ["preset:voice-notes"] and copy["env"]["ON_MATCH_CONTINUE"] == "true"
-    tags = [routing.rule_from_route(x)["tag"] for x in json.loads(keywords["env"]["ROUTES"])]
-    assert tags == ["einkauf", "termin"]  # empty task words → no task rule; default shopping words kept
+    assert files == ["handlers/70.0-webhook-pebble-voice-notes-keywords.json"]   # one step: each note is sent once
+    step = _read(d, files[0])
+    assert step["category"] == ["preset:voice-notes"] and "ON_MATCH_CONTINUE" not in step["env"]   # a match stops
+    rules = [routing.rule_from_route(x) for x in json.loads(step["env"]["ROUTES"])]
+    assert [x["tag"] for x in rules] == ["einkauf", "termin", "voice"]   # empty task words → no task rule
+    assert rules[-1]["when"] == "always" and rules[-1]["send"] == "text"  # the catch-all stays last
 
     again = c.post("/api/routing/presets/voice-notes", headers=AUTH,
                    json={"variant": "keywords", "params": {"source": "webhook:pebble", "target": "@obsidian"}})
     assert again.status_code == 409
 
     flow = [s for s in c.get("/api/routing", headers=AUTH).json()["steps"] if s["preset"] == "voice-notes"]
-    assert len(flow) == 2
+    assert len(flow) == 1
 
     r = c.delete("/api/routing/presets/voice-notes", params={"source": "webhook:pebble"}, headers=AUTH)
-    assert sorted(r.json()["removed"]) == sorted(files)
+    assert r.json()["removed"] == files
     assert c.delete("/api/routing/presets/voice-notes", params={"source": "webhook:pebble"},
                     headers=AUTH).status_code == 404
+
+
+def test_voice_template_keywords_only_has_no_catch_all(cfg):
+    c, d = cfg
+    r = c.post("/api/routing/presets/voice-notes", headers=AUTH, json={
+        "variant": "keywords", "params": {"source": "webhook:pebble", "target": "@obsidian"}})
+    assert r.status_code == 200, r.text
+    rules = [routing.rule_from_route(x) for x in json.loads(_read(d, r.json()["steps"][0]["file"])["env"]["ROUTES"])]
+    assert all(x["when"] != "always" for x in rules)
+    assert c.post("/api/routing/presets/voice-notes", headers=AUTH, json={
+        "variant": "copy", "params": {"source": "web", "target": "@obsidian"}}).status_code == 422   # old variant is gone
 
 
 def test_forward_all_template_needs_source_and_target(cfg):

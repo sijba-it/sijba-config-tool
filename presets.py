@@ -15,7 +15,8 @@ PRESETS: list[dict[str, Any]] = [
     {
         "id": "voice-notes",
         "label": "Voice notes → notebook",
-        "description": "A note that starts with a keyword is filed as a shopping item, task or appointment.",
+        "description": "A note that starts with a keyword is filed as a shopping item, task or appointment; "
+                       "any other note goes to the notebook as it is.",
         "params": [
             {"name": "source", "label": "Messages from", "kind": "source", "default": "webhook:voice"},
             {"name": "target", "label": "Notebook", "kind": "target", "default": "@obsidian"},
@@ -25,10 +26,11 @@ PRESETS: list[dict[str, Any]] = [
             {"name": "appointment", "label": "Appointment words", "kind": "words", "default": "termin, kalender"},
         ],
         "variants": [
+            {"id": "rest", "label": "Keywords + everything else",
+             "description": "A note with a keyword is filed by it; every other note is sent in full, labelled "
+                            "[voice]. Each note reaches the notebook exactly once."},
             {"id": "keywords", "label": "Keywords only",
-             "description": "Only notes that start with one of the words are filed."},
-            {"id": "copy", "label": "Keywords + keep every note",
-             "description": "Every note is also sent in full, labelled [voice], before the keywords are checked."},
+             "description": "Only notes that start with one of the words are filed; the others are not sent."},
         ],
     },
     {
@@ -71,11 +73,9 @@ def _build(preset_id: str, variant: str, p: dict) -> list[dict]:
                  if _words(p.get(key))]
         if not rules:
             raise ConfigError("enter at least one keyword", 422)
-        steps = [{"name": "keywords", "priority": 70.0, "keep_going": False, "rules": rules}]
-        if variant == "copy":
-            steps.insert(0, {"name": "copy", "priority": 10.0, "keep_going": True,
-                             "rules": [_always(target, "voice")]})
-        return steps
+        if variant == "rest":                    # last rule: whatever no keyword caught (first match wins)
+            rules.append(_always(target, "voice"))
+        return [{"name": "keywords", "priority": 70.0, "keep_going": False, "rules": rules}]
     if preset_id == "forward-all":
         return [{"name": variant, "priority": 80.0, "keep_going": variant == "copy",
                  "rules": [_always(target, str(p.get("tag") or "").strip())]}]

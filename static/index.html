@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>sijba</title>
 <link rel="icon" type="image/png" href="__BASE_PATH__/favicon.png"/>
 <link rel="shortcut icon" href="__BASE_PATH__/favicon.ico"/>
@@ -66,6 +66,8 @@
   header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: .5rem;
            padding: .6rem 1rem; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
   header .brand { font-weight: 700; font-size: 1.1rem; margin-right: .75rem; }
+  .menu-btn { display: none; background: transparent; border: 1px solid var(--border); color: var(--text); font-size: 1.2rem;
+              line-height: 1; padding: .35rem .6rem; border-radius: 8px; }
   nav.pages { display: flex; gap: .25rem; }
   nav.pages button { background: transparent; border: 0; color: var(--muted); padding: .4rem .75rem; border-radius: 8px; white-space: nowrap; }
   nav.pages button.active { background: var(--panel-2); color: var(--text); }
@@ -241,15 +243,15 @@
 
   @media (max-width: 720px) {
     header .brand { margin-right: .25rem; }
-    /* phone: the page menu becomes a tab bar at the bottom (thumb reach, all entries visible) */
-    nav.pages { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; gap: 0; background: var(--panel);
-                border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
-    nav.pages button { flex: 1; min-width: 0; padding: .8rem .1rem; font-size: .78rem; border-radius: 0; }
-    nav.pages button.active { background: transparent; color: var(--accent); box-shadow: inset 0 2px 0 var(--accent); }
+    /* phone: hamburger button + dropdown list under the top bar */
     header { flex-wrap: nowrap; }
-    body { padding-bottom: calc(3.2rem + env(safe-area-inset-bottom)); }
-    #toast { bottom: calc(4.2rem + env(safe-area-inset-bottom)) !important; }
-    #advanced { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: calc(100vh - 6.5rem); }
+    .menu-btn { display: inline-block; }
+    nav.pages { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; gap: 0;
+                background: var(--panel); border-bottom: 1px solid var(--border); box-shadow: 0 8px 18px rgba(0,0,0,.18); }
+    header.open nav.pages { display: flex; }
+    nav.pages button { text-align: left; padding: .95rem 1.1rem; border-radius: 0; font-size: 1rem; border-top: 1px solid var(--border); }
+    nav.pages button.active { background: var(--panel-2); color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
+    #advanced { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: calc(100vh - 3.3rem); }
     #files { border-right: 0; border-bottom: 1px solid var(--border); max-height: 14rem; }
     #editor { min-height: 60vh; }
     .kv-row, .route-row { grid-template-columns: 1fr; }
@@ -274,8 +276,9 @@
 
 <div id="app" hidden>
   <header>
+    <button type="button" class="menu-btn" id="menu-btn" aria-label="Menu" aria-expanded="false" aria-controls="pages-nav">☰</button>
     <span class="brand">sijba</span>
-    <nav class="pages">
+    <nav class="pages" id="pages-nav">
       <button type="button" data-page="connections" class="active">Connections</button>
       <button type="button" data-page="routing">Routing</button>
       <button type="button" data-page="agents">Agents</button>
@@ -454,7 +457,15 @@ document.getElementById("logout-btn").onclick = () => {
 
 /* ---------- shell ---------- */
 
+function setMenu(open) {
+  document.querySelector("header").classList.toggle("open", open);
+  document.getElementById("menu-btn").setAttribute("aria-expanded", open ? "true" : "false");
+}
+document.getElementById("menu-btn").onclick = () => setMenu(!document.querySelector("header").classList.contains("open"));
+document.addEventListener("click", (e) => { if (!e.target.closest("header")) setMenu(false); });
+
 function showPage(name) {
+  setMenu(false);
   document.querySelectorAll("nav.pages button").forEach(b => b.classList.toggle("active", b.dataset.page === name));
   document.getElementById("page-connections").hidden = name !== "connections";
   document.getElementById("page-routing").hidden = name !== "routing";

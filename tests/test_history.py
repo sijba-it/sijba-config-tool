@@ -40,23 +40,23 @@ def test_saves_are_listed_newest_first_with_diffs(cfg):
     assert c.get("/api/history/nope", headers=AUTH).status_code == 404
 
 
-def test_undo_a_template_removes_all_its_files_in_one_go(cfg):
+def test_undo_a_template_removes_its_file(cfg):
     c, d = cfg
     r = c.post("/api/routing/presets/voice-notes", headers=AUTH,
-               json={"variant": "copy", "params": {"source": "webhook:voice", "target": "@obsidian"}})
+               json={"variant": "rest", "params": {"source": "webhook:voice", "target": "@obsidian"}})
     assert r.status_code == 200
     change = c.get("/api/history", headers=AUTH).json()["changes"][0]
     assert change["label"] == "Routing: template voice-notes added"
-    assert sorted(f["action"] for f in change["files"]) == ["added", "added"]
+    assert [f["action"] for f in change["files"]] == ["added"]
 
     assert c.post(f"/api/history/{change['id']}/undo", headers=AUTH).status_code == 200
     assert list((d / "handlers").glob("*.json")) == []
     undo = c.get("/api/history", headers=AUTH).json()["changes"][0]
     assert undo["label"] == "Undo: Routing: template voice-notes added"
-    assert sorted(f["action"] for f in undo["files"]) == ["deleted", "deleted"]
-    # and undoing the undo brings them back
+    assert [f["action"] for f in undo["files"]] == ["deleted"]
+    # and undoing the undo brings it back
     c.post(f"/api/history/{undo['id']}/undo", headers=AUTH)
-    assert len(list((d / "handlers").glob("*.json"))) == 2
+    assert len(list((d / "handlers").glob("*.json"))) == 1
 
 
 def test_undo_restores_a_deleted_file_and_flags_later_edits(cfg):
