@@ -43,6 +43,16 @@
   input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   code { font-family: var(--mono); font-size: .85em; }
 
+  /* long unbroken text (regexes, templates, ids, urls, pod names) wraps instead of widening the page */
+  code, .msg, .name, .url, .desc, .detail, .lead, .sub, .note, .help, .empty, li, p { overflow-wrap: anywhere; }
+  code { white-space: normal; min-width: 0; }
+  .row > *, .step > *, .card > *, li > * { min-width: 0; }
+  img, textarea, input, select { max-width: 100%; }
+  /* last line of defence: the page never scrolls sideways (clip, unlike hidden, keeps the sticky header working) */
+  html, body { max-width: 100%; overflow-x: clip; }
+  /* phones: no sideways panning or bounce of the page itself (inner scroll boxes such as diffs keep theirs) */
+  html { overscroll-behavior-x: none; touch-action: pan-y pinch-zoom; }
+
   .btn { border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
          padding: .45rem .9rem; border-radius: 8px; white-space: nowrap; }
   .btn:hover { border-color: var(--muted); }
