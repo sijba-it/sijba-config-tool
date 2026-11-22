@@ -14,11 +14,13 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
+import agents
 import presets
 import routing
 import status
@@ -273,6 +275,15 @@ def _core_get(path: str) -> Any:
         return json.loads(r.read() or b"null")
 
 
+def _core_patch(path: str, body: dict) -> Any:
+    req = urllib.request.Request(
+        CORE_URL + path, data=json.dumps(body).encode(), method="PATCH",
+        headers={"Content-Type": "application/json",
+                 **({"Authorization": f"Bearer {AUTH_TOKEN}"} if AUTH_TOKEN else {})})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.loads(r.read() or b"null")
+
+
 def _core_try(path: str) -> tuple[Any, str | None]:
     try:
         return _core_get(path), None
@@ -320,6 +331,36 @@ def routing_overview():
         "status": files,
         "core_error": core_error,
     }
+
+
+@api.get("/api/agents", dependencies=[Depends(_check_auth)])
+def agents_overview():
+    """Connected agents and whether each may send messages to other channels."""
+    channels, err = _core_try("/api/plugin/channels")
+    permissions, perr = _core_try("/api/admin/channel-permissions") if err is None else (None, err)
+    core_error = err or perr
+    return {"agents": agents.overview(channels or [], permissions if isinstance(permissions, dict) else {}),
+            "format": agents.FORMAT_EXAMPLE,
+            "core_error": f"sijba is not reachable: {core_error}" if core_error else None}
+
+
+class AgentPermissionBody(BaseModel):
+    can_inject: bool
+
+
+@api.put("/api/agents/permissions/{channel_id:path}", dependencies=[Depends(_check_auth)])
+def agent_permission_set(channel_id: str, body: AgentPermissionBody):
+    """Allow or forbid an agent to send messages to other channels. Takes effect at once in
+    Core (no Apply needed) - Core stores it in its own channel_permissions.yaml."""
+    try:
+        res = _core_patch("/api/admin/channel-permissions/" + quote(channel_id, safe=":"),
+                          {"can_inject": body.can_inject})
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")[:300]
+        return JSONResponse({"error": f"Core refused ({exc.code}): {detail}"}, status_code=502)
+    except (urllib.error.URLError, OSError) as exc:
+        return JSONResponse({"error": f"Core unreachable: {exc}"}, status_code=502)
+    return {"channel_id": channel_id, "can_inject": bool((res or {}).get("can_inject"))}
 
 
 class StepBody(BaseModel):

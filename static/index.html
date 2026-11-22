@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>sijba</title>
 <link rel="icon" type="image/png" href="__BASE_PATH__/favicon.png"/>
 <link rel="shortcut icon" href="__BASE_PATH__/favicon.ico"/>
@@ -174,6 +174,9 @@
   #problems .problems { margin: .5rem 1rem 0; }
   #files button.bad::after, nav.pages button.has-problems::after { content: " ●"; color: var(--bad); }
   .notice .actions { margin-top: .5rem; }
+  .page h3 { font-size: 1rem; margin: 1.4rem 0 .4rem; }
+  pre.fmt { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .8rem;
+    font-family: var(--mono); font-size: .8rem; overflow-x: auto; margin: 0 0 1rem; }
   .h-row { display: flex; align-items: center; gap: .75rem; padding: .65rem 1rem; flex-wrap: wrap; }
   .h-row .when { color: var(--muted); font-size: .82rem; min-width: 8.5rem; }
   .h-row .label { flex: 1; min-width: 12rem; }
@@ -238,8 +241,15 @@
 
   @media (max-width: 720px) {
     header .brand { margin-right: .25rem; }
-    nav.pages button { padding: .4rem .5rem; }
-    #advanced { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: calc(100vh - 3.3rem); }
+    /* phone: the page menu becomes a tab bar at the bottom (thumb reach, all entries visible) */
+    nav.pages { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; gap: 0; background: var(--panel);
+                border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
+    nav.pages button { flex: 1; min-width: 0; padding: .8rem .1rem; font-size: .78rem; border-radius: 0; }
+    nav.pages button.active { background: transparent; color: var(--accent); box-shadow: inset 0 2px 0 var(--accent); }
+    header { flex-wrap: nowrap; }
+    body { padding-bottom: calc(3.2rem + env(safe-area-inset-bottom)); }
+    #toast { bottom: calc(4.2rem + env(safe-area-inset-bottom)) !important; }
+    #advanced { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: calc(100vh - 6.5rem); }
     #files { border-right: 0; border-bottom: 1px solid var(--border); max-height: 14rem; }
     #editor { min-height: 60vh; }
     .kv-row, .route-row { grid-template-columns: 1fr; }
@@ -268,8 +278,9 @@
     <nav class="pages">
       <button type="button" data-page="connections" class="active">Connections</button>
       <button type="button" data-page="routing">Routing</button>
-      <button type="button" data-page="advanced">Advanced</button>
+      <button type="button" data-page="agents">Agents</button>
       <button type="button" data-page="history">History</button>
+      <button type="button" data-page="advanced">Advanced</button>
     </nav>
     <span class="spacer"></span>
     <button class="btn" id="apply-btn" type="button" title="Load saved config files into the running sijba">Apply changes</button>
@@ -303,6 +314,18 @@
     <p class="lead">Where answers to these messages go. Only shown here — replies are set up under
       Connections (e.g. Pushover) or Advanced.</p>
     <div id="r-replies"></div>
+  </section>
+
+  <section class="page" id="page-agents" hidden>
+    <h2>Agents</h2>
+    <p class="lead">Agents are the programs that answer messages — for example your Obsidian or research agent.
+      Messages reach them through <a href="#" id="a-to-routing">Routing</a>.</p>
+    <h3>Sending to other agents</h3>
+    <p class="lead">An agent can pass a message on to another agent or channel — but only if you allow it here.
+      It does so by ending its answer with a block in this format; the channel id is the one shown below. The
+      setting takes effect immediately, no Apply needed.</p>
+    <pre class="fmt" id="r-agents-format"></pre>
+    <div id="r-agents"></div>
   </section>
 
   <section class="page" id="page-history" hidden>
@@ -435,15 +458,18 @@ function showPage(name) {
   document.querySelectorAll("nav.pages button").forEach(b => b.classList.toggle("active", b.dataset.page === name));
   document.getElementById("page-connections").hidden = name !== "connections";
   document.getElementById("page-routing").hidden = name !== "routing";
+  document.getElementById("page-agents").hidden = name !== "agents";
   document.getElementById("page-advanced").hidden = name !== "advanced";
   document.getElementById("page-history").hidden = name !== "history";
   clearTimeout(connTimer);
   if (name === "connections") loadConnections();
   else if (name === "routing") loadRouting();
+  else if (name === "agents") loadAgents();
   else if (name === "history") loadHistory();
   else loadList();
 }
 document.querySelectorAll("nav.pages button").forEach(b => b.onclick = () => showPage(b.dataset.page));
+document.getElementById("a-to-routing").onclick = (e) => { e.preventDefault(); showPage("routing"); };
 
 function setPending(on) {
   if (on) localStorage.setItem("sijba_pending_apply", "1");
@@ -687,6 +713,49 @@ async function loadRouting() {
   }
   if (!routing.sources.some(s => s.source === rSource)) rSource = (routing.sources[0] || {}).source || "";
   renderRouting();
+}
+
+let agentsData = null;
+
+async function loadAgents() {
+  const box = document.getElementById("r-agents");
+  try { agentsData = await api("/api/agents"); }
+  catch (e) {
+    if (!(e instanceof AuthError)) box.innerHTML = '<p class="empty">' + esc(errText(e)) + "</p>";
+    return;
+  }
+  renderAgents();
+}
+
+function renderAgents() {
+  const box = document.getElementById("r-agents");
+  box.innerHTML = "";
+  document.getElementById("r-agents-format").textContent = agentsData.format;
+  if (agentsData.core_error) box.appendChild(el("div", {className: "notice"}, agentsData.core_error));
+  const list = el("div", {className: "list"});
+  for (const a of agentsData.agents) {
+    const row = el("div", {className: "row"}, el("span", {className: "name"}, a.label), el("code", {className: "msg"}, a.channel_id));
+    if (a.mention) row.appendChild(el("span", {className: "tag"}, a.mention));
+    if (!a.online) row.appendChild(el("span", {className: "tag"}, "not connected"));
+    row.appendChild(el("span", {style: "flex:1"}));
+    row.appendChild(el("button", {type: "button", className: "btn small" + (a.can_inject ? " primary" : ""),
+      title: a.can_inject ? "Click to forbid" : "Click to allow", onClick: () => setAgentPermission(a)},
+      a.can_inject ? "May send to others" : "Not allowed"));
+    list.appendChild(row);
+  }
+  if (list.children.length) box.appendChild(list);
+  else if (!agentsData.core_error) box.appendChild(el("p", {className: "empty"}, "No agents are connected."));
+}
+
+async function setAgentPermission(a) {
+  try {
+    await api("/api/agents/permissions/" + encodeURIComponent(a.channel_id).replace(/%3A/gi, ":"), {
+      method: "PUT", body: JSON.stringify({can_inject: !a.can_inject})});
+    toast(a.label + (a.can_inject ? ": no longer allowed to send to other agents" : ": may now send to other agents"), "ok");
+  } catch (e) {
+    if (!(e instanceof AuthError)) toast(errText(e), "bad");
+  }
+  loadAgents();
 }
 
 function currentFlow() {
