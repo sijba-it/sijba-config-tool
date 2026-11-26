@@ -559,6 +559,10 @@ document.getElementById("apply-btn").onclick = async () => {
 async function startApp() {
   document.getElementById("login").hidden = true;
   document.getElementById("app").hidden = false;
+  try {  // the raw file editor is for the admin only (hosted tenants); the server enforces it too
+    const me = await api("/api/me");
+    document.querySelector('nav.pages button[data-page="advanced"]').hidden = !me.admin;
+  } catch (e) { /* login screen handles auth errors */ }
   document.getElementById("conn-block").hidden = !connectorsEnabled;
   setPending(localStorage.getItem("sijba_pending_apply") === "1");
   refreshStatus();

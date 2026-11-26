@@ -33,6 +33,10 @@ CONFIG_DIR = Path(os.environ.get("SIJBA_CONFIG_DIR", "./sijba-config"))
 # Login of this tool. May be a hash (python -m core.authhash in the sijba repo); then
 # SIJBA_CORE_TOKEN must hold the plain secret this tool sends to Core.
 AUTH_TOKEN = os.environ.get("SIJBA_AUTH_TOKEN") or None
+# Hosted tenants: SIJBA_RESTRICTED=1 limits the login to Connections/Routing/Agents; the raw file
+# editor and core.yaml need SIJBA_ADMIN_TOKEN (plain or hash), which only the operator knows.
+RESTRICTED = os.environ.get("SIJBA_RESTRICTED", "").strip().lower() in ("1", "true", "yes", "on")
+ADMIN_TOKEN = os.environ.get("SIJBA_ADMIN_TOKEN") or None
 CORE_TOKEN = os.environ.get("SIJBA_CORE_TOKEN") or (None if authhash.is_hash(AUTH_TOKEN) else AUTH_TOKEN)
 ROOT_PATH = (os.environ.get("ROOT_PATH") or "").rstrip("/")
 SCHEMA_PATH = Path(
@@ -60,17 +64,39 @@ app = FastAPI(title="sijba-config-tool", docs_url=None, redoc_url=None)
 api = FastAPI(title="sijba-config-tool")
 
 
+def _matches(got: str | None, expected: str | None) -> bool:
+    if not got or not expected:
+        return False
+    if authhash.is_hash(expected):
+        return authhash.verify(got, expected)
+    return secrets.compare_digest(got.encode(), expected.encode())
+
+
+def _bearer(authorization: str | None, token: str | None) -> str | None:
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization[7:].strip() or token
+    return token
+
+
 def _check_auth(authorization: str | None = Header(default=None),
                 token: str | None = None) -> None:
     if not AUTH_TOKEN:
         return
-    bearer = None
-    if authorization and authorization.lower().startswith("bearer "):
-        bearer = authorization[7:].strip()
-    got = bearer or token
-    if not got or not (authhash.verify(got, AUTH_TOKEN) if authhash.is_hash(AUTH_TOKEN)
-                       else secrets.compare_digest(got.encode(), AUTH_TOKEN.encode())):
+    got = _bearer(authorization, token)
+    if not (_matches(got, AUTH_TOKEN) or (RESTRICTED and _matches(got, ADMIN_TOKEN))):
         raise HTTPException(status_code=401, detail="unauthorized")
+
+
+def _is_admin(authorization: str | None, token: str | None) -> bool:
+    """Everything is admin unless the tool runs restricted (hosted tenants), where only the
+    separate admin token counts - the user's login is not enough."""
+    return (not RESTRICTED) or _matches(_bearer(authorization, token), ADMIN_TOKEN)
+
+
+def _check_admin(authorization: str | None = Header(default=None), token: str | None = None) -> None:
+    _check_auth(authorization, token)
+    if not _is_admin(authorization, token):
+        raise HTTPException(status_code=403, detail="admin only")
 
 
 class PutBody(BaseModel):
@@ -104,22 +130,22 @@ def health():
     }
 
 
-@api.get("/api/files", dependencies=[Depends(_check_auth)])
+@api.get("/api/files", dependencies=[Depends(_check_admin)])
 def list_files():
     return {"files": backend.list_files()}
 
 
-@api.get("/api/files/{path:path}", dependencies=[Depends(_check_auth)])
+@api.get("/api/files/{path:path}", dependencies=[Depends(_check_admin)])
 def get_file(path: str):
     return backend.get(path)
 
 
-@api.put("/api/files/{path:path}", dependencies=[Depends(_check_auth)])
+@api.put("/api/files/{path:path}", dependencies=[Depends(_check_admin)])
 def put_file(path: str, body: PutBody):
     return backend.put(path, body.content, backup=body.backup)
 
 
-@api.delete("/api/files/{path:path}", dependencies=[Depends(_check_auth)])
+@api.delete("/api/files/{path:path}", dependencies=[Depends(_check_admin)])
 def delete_file(path: str):
     if path == "core.yaml":
         raise HTTPException(422, "core.yaml cannot be deleted")
@@ -127,27 +153,28 @@ def delete_file(path: str):
     return {"ok": True}
 
 
-@api.post("/api/validate/{path:path}", dependencies=[Depends(_check_auth)])
+@api.post("/api/validate/{path:path}", dependencies=[Depends(_check_admin)])
 def validate_file(path: str, body: ValidateBody | None = None):
     content = body.content if body else None
     return backend.validate(path, content)
 
 
-@api.post("/api/parse/{path:path}", dependencies=[Depends(_check_auth)])
+@api.post("/api/parse/{path:path}", dependencies=[Depends(_check_admin)])
 def parse_file(path: str, body: ParseBody):
     backend.resolve(path)  # allowlist
     return parse_content(path, body.content)
 
 
-@api.post("/api/serialize/{path:path}", dependencies=[Depends(_check_auth)])
+@api.post("/api/serialize/{path:path}", dependencies=[Depends(_check_admin)])
 def serialize_file(path: str, body: SerializeBody):
     backend.resolve(path)
     return {"content": serialize_content(path, body.data)}
 
 
 @api.get("/api/me", dependencies=[Depends(_check_auth)])
-def me():
-    return {"ok": True, "connectors": provisioner is not None}
+def me(authorization: str | None = Header(default=None), token: str | None = None):
+    return {"ok": True, "connectors": provisioner is not None,
+            "admin": _is_admin(authorization, token), "restricted": RESTRICTED}
 
 
 @api.post("/api/apply", dependencies=[Depends(_check_auth)])
@@ -189,7 +216,7 @@ def auth_state():
             "env_ref": isinstance(tok, str) and "${" in tok}
 
 
-@api.post("/api/auth/harden", dependencies=[Depends(_check_auth)])
+@api.post("/api/auth/harden", dependencies=[Depends(_check_admin)])
 def auth_harden():
     """Replace a plaintext auth_token in core.yaml by its hash (also scrubs core.yaml.bak).
     Clients keep sending the same secret. Core needs an Apply/restart to pick it up."""
