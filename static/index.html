@@ -336,6 +336,35 @@
 
   <section class="page" id="page-agents" hidden>
     <h2>Agents</h2>
+    <h3>Start an agent on another PC / server</h3>
+    <p class="lead">Run the generated command once in a terminal on the target machine (Linux with
+      <code>git</code>, <code>python3</code>; it installs a user service, no sudo). Choose either a
+      <strong>single agent</strong> that runs on its own, or the <strong>agent controller</strong> that
+      manages several projects and is steered from sijba chat.</p>
+    <div class="row" style="gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap">
+      <label for="ag-mode">What</label>
+      <select id="ag-mode">
+        <option value="single">Single agent (no controller)</option>
+        <option value="controller">Agent controller (many projects)</option>
+      </select>
+      <label for="ag-plugin" class="ag-single">Agent</label>
+      <select id="ag-plugin" class="ag-single">
+        <option value="remote-control">Claude Code Remote Control (phone-paired, recommended)</option>
+        <option value="claude-headless">Claude Code headless (chat only)</option>
+        <option value="cursor">Cursor Agent</option>
+      </select>
+      <label for="ag-name" class="ag-single">Project name</label>
+      <input type="text" id="ag-name" value="my-project" style="width:10rem" class="ag-single">
+      <label for="ag-dir" class="ag-single">Work dir</label>
+      <input type="text" id="ag-dir" value="$HOME/workspaces/my-project" style="width:16rem" class="ag-single">
+      <label for="ag-roots" class="ag-ctl">Projects folder</label>
+      <input type="text" id="ag-roots" value="$HOME/workspaces" style="width:14rem" class="ag-ctl">
+      <label for="ag-token">sijba plugin token</label>
+      <input type="password" id="ag-token" placeholder="paste here (not stored)" style="flex:1;min-width:12rem" autocomplete="off">
+    </div>
+    <p class="lead" id="ag-hint"></p>
+    <pre class="fmt" id="ag-install"></pre>
+    <button type="button" class="btn small primary" id="ag-copy">Copy</button>
     <p class="lead">Agents are the programs that answer messages — for example your Obsidian or research agent.
       Messages reach them through <a href="#" id="a-to-routing">Routing</a>.</p>
     <h3>Sending to other agents</h3>
@@ -741,6 +770,109 @@ async function loadRouting() {
   if (!routing.sources.some(s => s.source === rSource)) rSource = (routing.sources[0] || {}).source || "";
   renderRouting();
 }
+
+const AGENT_PLUGINS = {
+  "remote-control": {repo: "sijba-claude-remote-control-plugin", need: "claude",
+    hint: "Needs Claude Code (<code>claude</code>) installed and logged in, plus <code>tmux</code>. Pair it from the Claude app on your phone."},
+  "claude-headless": {repo: "sijba-claude-headless-plugin", need: "claude",
+    hint: "Needs Claude Code (<code>claude</code>) installed and logged in. Answers one message per turn, no phone pairing."},
+  "cursor": {repo: "sijba-cursor-plugin", need: "cursor-agent",
+    hint: "Needs the Cursor CLI (<code>cursor-agent</code>) installed and logged in."},
+};
+
+function agentInstallScript() {
+  const v = id => document.getElementById(id).value.trim();
+  const tok = v("ag-token") || "<PLUGIN-TOKEN>";
+  const mode = v("ag-mode");
+  const head = "set -e\n";
+  const tail = (unit, name) => `systemctl --user daemon-reload
+systemctl --user enable --now ${unit}
+loginctl enable-linger "$USER" || true
+echo "done - logs: journalctl --user -u ${unit} -f"`;
+  if (mode === "controller") {
+    const roots = v("ag-roots") || "$HOME/workspaces";
+    return head + `git clone https://github.com/sijba-it/sijba-agent-controller.git ~/sijba-agent-controller
+cd ~/sijba-agent-controller
+python3 -m venv .venv && .venv/bin/pip install -q websockets
+mkdir -p ~/.config/systemd/user "${roots}"
+(umask 077; cat > ~/.config/sijba-agent-controller.env <<EOF
+SIJBA_URL=${publicCoreUrl}
+SIJBA_TOKEN=${tok}
+WORKSPACE_ROOTS=${roots}
+EOF
+)
+cat > ~/.config/systemd/user/sijba-agent-controller.service <<'EOF'
+[Unit]
+Description=SIJBA Agent Controller
+After=network-online.target
+[Service]
+WorkingDirectory=%h/sijba-agent-controller
+EnvironmentFile=%h/.config/sijba-agent-controller.env
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Delegate=yes
+KillMode=process
+ExecStart=%h/sijba-agent-controller/.venv/bin/python controller.py
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=default.target
+EOF
+` + tail("sijba-agent-controller");
+  }
+  const pl = AGENT_PLUGINS[v("ag-plugin")];
+  const name = (v("ag-name") || "my-project").replace(/[^A-Za-z0-9_.-]/g, "-");
+  const dir = v("ag-dir") || "$HOME/workspaces/" + name;
+  const unit = "sijba-agent-" + name;
+  const dirD = "$HOME/sijba-agents/" + name;
+  return head + `command -v ${pl.need} >/dev/null || { echo "missing: ${pl.need} (install and log in first)"; exit 1; }
+D=${dirD}
+mkdir -p "$D" ~/.config/systemd/user "${dir}"
+git clone https://github.com/sijba-it/${pl.repo}.git "$D/plugin"
+python3 -m venv "$D/.venv" && "$D/.venv/bin/pip" install -q websockets
+echo '{"projects":{}}' > "$D/registry.json"
+(umask 077; cat > ~/.config/${unit}.env <<EOF
+SIJBA_URL=${publicCoreUrl}
+SIJBA_TOKEN=${tok}
+PROJECT_NAME=${name}
+WORK_DIR=${dir}
+REGISTRY_FILE=$D/registry.json
+EOF
+)
+cat > ~/.config/systemd/user/${unit}.service <<EOF
+[Unit]
+Description=SIJBA agent ${name}
+After=network-online.target
+[Service]
+WorkingDirectory=$D/plugin
+EnvironmentFile=%h/.config/${unit}.env
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Delegate=yes
+KillMode=process
+ExecStart=$D/.venv/bin/python main.py
+Restart=always
+RestartSec=5
+RestartPreventExitStatus=90 91
+[Install]
+WantedBy=default.target
+EOF
+` + tail(unit);
+}
+
+function renderAgentInstall() {
+  const ctl = document.getElementById("ag-mode").value === "controller";
+  document.querySelectorAll(".ag-single").forEach(n => n.hidden = ctl);
+  document.querySelectorAll(".ag-ctl").forEach(n => n.hidden = !ctl);
+  document.getElementById("ag-hint").innerHTML = ctl
+    ? "Afterwards create agents by writing in sijba: <code>controller add my-project --plugin remote-control</code>. Needs <code>tmux</code>; Claude Code / Cursor CLI are installed per agent."
+    : AGENT_PLUGINS[document.getElementById("ag-plugin").value].hint + " The agent appears in sijba as soon as it is connected.";
+  document.getElementById("ag-install").textContent = agentInstallScript();
+}
+["ag-mode", "ag-plugin"].forEach(id => document.getElementById(id).onchange = renderAgentInstall);
+["ag-token", "ag-roots", "ag-name", "ag-dir"].forEach(id => document.getElementById(id).oninput = renderAgentInstall);
+document.getElementById("ag-copy").onclick = () => {
+  navigator.clipboard.writeText(agentInstallScript()).then(() => toast("Copied", "ok"), () => toast("Copy failed - select the text manually", "bad"));
+};
+renderAgentInstall();
 
 let agentsData = null;
 
@@ -1650,10 +1782,21 @@ function renderCoreForm(data) {
     field("runtime", textInput(data.runtime, {id: "c-runtime", placeholder: "docker | kubernetes | none"})),
     wide("db_path", textInput(data.db_path, {id: "c-db"})),
     wide("upload_dir", textInput(data.upload_dir, {id: "c-upload"})),
-    wide("auth_token (prefer env)", textInput(data.auth_token, {id: "c-auth", type: "password", autocomplete: "off"})),
+    wide("auth_token (stored as hash; type a new secret to replace)", textInput(data.auth_token, {id: "c-auth", type: "password", autocomplete: "off"})),
     wide("webhook_token (legacy, prefer named webhooks)", textInput(data.webhook_token, {id: "c-wh", type: "password", autocomplete: "off"})),
   ));
   wrap.appendChild(sys);
+  const authBox = el("div", {});
+  wrap.appendChild(authBox);
+  api("/api/auth").then(a => {
+    if (!a.set || a.hashed || a.env_ref) return;
+    authBox.appendChild(el("div", {className: "notice"},
+      "The login secret (auth_token) is stored in plaintext. It is hashed automatically on every save, or now: ",
+      el("button", {type: "button", className: "btn small", text: "Hash it now", onClick: async () => {
+        try { await api("/api/auth/harden", {method: "POST"}); toast("auth_token hashed - Apply changes to use it", "ok"); authBox.innerHTML = ""; openFile("core.yaml"); }
+        catch (e) { if (!(e instanceof AuthError)) toast(errText(e), "bad"); }
+      }})));
+  }).catch(() => {});
   return wrap;
 }
 

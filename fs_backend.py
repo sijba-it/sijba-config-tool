@@ -14,6 +14,7 @@ from typing import Any, Optional
 
 import yaml
 
+import authhash
 from history import History
 
 try:
@@ -110,17 +111,22 @@ class FsBackend:
 
     def put(self, rel: str, content: str, *, backup: bool = True, validate: bool = True) -> dict[str, Any]:
         path = self.resolve(rel)
+        if rel == "core.yaml":
+            # A plaintext login secret is never written (nor kept in .bak / history).
+            content = authhash.harden_core_yaml(content)
         # Validate before write so we never persist garbage as the only copy.
         # Restoring from history skips it: the old state may have been broken too.
         report = self.validate(rel, content)
         if validate and not report["ok"]:
             raise ConfigError("; ".join(report["errors"]), 400)
         before = path.read_text(encoding="utf-8") if path.is_file() else None
+        if rel == "core.yaml" and before is not None:
+            before = authhash.harden_core_yaml(before)
 
         path.parent.mkdir(parents=True, exist_ok=True)
         if backup and path.is_file():
             bak = path.with_suffix(path.suffix + ".bak")
-            bak.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+            bak.write_text(before, encoding="utf-8")
 
         tmp = path.with_suffix(path.suffix + ".tmp")
         tmp.write_text(content, encoding="utf-8")

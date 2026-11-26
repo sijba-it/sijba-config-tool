@@ -21,6 +21,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 import agents
+import authhash
 import presets
 import routing
 import status
@@ -29,7 +30,10 @@ from fs_backend import ConfigError, FsBackend
 from provisioner import Provisioner, ProvisionerError
 
 CONFIG_DIR = Path(os.environ.get("SIJBA_CONFIG_DIR", "./sijba-config"))
+# Login of this tool. May be a hash (python -m core.authhash in the sijba repo); then
+# SIJBA_CORE_TOKEN must hold the plain secret this tool sends to Core.
 AUTH_TOKEN = os.environ.get("SIJBA_AUTH_TOKEN") or None
+CORE_TOKEN = os.environ.get("SIJBA_CORE_TOKEN") or (None if authhash.is_hash(AUTH_TOKEN) else AUTH_TOKEN)
 ROOT_PATH = (os.environ.get("ROOT_PATH") or "").rstrip("/")
 SCHEMA_PATH = Path(
     os.environ.get(
@@ -64,7 +68,8 @@ def _check_auth(authorization: str | None = Header(default=None),
     if authorization and authorization.lower().startswith("bearer "):
         bearer = authorization[7:].strip()
     got = bearer or token
-    if got != AUTH_TOKEN:
+    if not got or not (authhash.verify(got, AUTH_TOKEN) if authhash.is_hash(AUTH_TOKEN)
+                       else secrets.compare_digest(got.encode(), AUTH_TOKEN.encode())):
         raise HTTPException(status_code=401, detail="unauthorized")
 
 
@@ -151,7 +156,7 @@ def apply_config():
     req = urllib.request.Request(
         CORE_URL + "/api/admin/reload", data=b"{}", method="POST",
         headers={"Content-Type": "application/json",
-                 **({"Authorization": f"Bearer {AUTH_TOKEN}"} if AUTH_TOKEN else {})})
+                 **({"Authorization": f"Bearer {CORE_TOKEN}"} if CORE_TOKEN else {})})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.loads(r.read() or b"{}")
@@ -174,6 +179,27 @@ def _core_yaml() -> dict:
 
 def _save_core_yaml(data: dict) -> None:
     backend.put("core.yaml", serialize_content("core.yaml", data), backup=True)
+
+
+@api.get("/api/auth", dependencies=[Depends(_check_auth)])
+def auth_state():
+    """Is the Core login secret in core.yaml still stored in plaintext?"""
+    tok = _core_yaml().get("auth_token")
+    return {"set": bool(tok), "hashed": authhash.is_hash(tok) if tok else None,
+            "env_ref": isinstance(tok, str) and "${" in tok}
+
+
+@api.post("/api/auth/harden", dependencies=[Depends(_check_auth)])
+def auth_harden():
+    """Replace a plaintext auth_token in core.yaml by its hash (also scrubs core.yaml.bak).
+    Clients keep sending the same secret. Core needs an Apply/restart to pick it up."""
+    raw = backend.get("core.yaml")["content"]
+    new = authhash.harden_core_yaml(raw)
+    if new == raw:
+        return {"changed": False}
+    with backend.history.change("auth_token hashed"):
+        backend.put("core.yaml", new, backup=True)
+    return {"changed": True}
 
 
 @api.get("/api/webhooks", dependencies=[Depends(_check_auth)])
@@ -270,7 +296,7 @@ def history_undo(change_id: str):
 def _core_get(path: str) -> Any:
     req = urllib.request.Request(
         CORE_URL + path,
-        headers={**({"Authorization": f"Bearer {AUTH_TOKEN}"} if AUTH_TOKEN else {})})
+        headers={**({"Authorization": f"Bearer {CORE_TOKEN}"} if CORE_TOKEN else {})})
     with urllib.request.urlopen(req, timeout=10) as r:
         return json.loads(r.read() or b"null")
 
@@ -279,7 +305,7 @@ def _core_patch(path: str, body: dict) -> Any:
     req = urllib.request.Request(
         CORE_URL + path, data=json.dumps(body).encode(), method="PATCH",
         headers={"Content-Type": "application/json",
-                 **({"Authorization": f"Bearer {AUTH_TOKEN}"} if AUTH_TOKEN else {})})
+                 **({"Authorization": f"Bearer {CORE_TOKEN}"} if CORE_TOKEN else {})})
     with urllib.request.urlopen(req, timeout=10) as r:
         return json.loads(r.read() or b"null")
 

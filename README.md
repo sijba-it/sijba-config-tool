@@ -74,6 +74,19 @@ still need a restart (`port`, `db_path`, …).
 
 If `ROOT_PATH` is set (k8s: `/config-ui`), all of the above are under that prefix.
 
+## Hashed login
+
+Core accepts a hash as `auth_token` (see the sijba repo, `python -m core.authhash`). This tool
+helps with that:
+
+- Saving `core.yaml` (form, raw, history restore) replaces a plaintext `auth_token` by its
+  hash (`sha256$…` for secrets of 32+ chars, salted `scrypt$…` for shorter ones). Comments are
+  kept; `${ENV}` references are left alone. The `.bak` and history entries get the hash too.
+- `GET /api/auth` tells whether it is still plaintext, `POST /api/auth/harden` converts an
+  existing file (button in the core.yaml form). Core needs *Apply* / a restart afterwards.
+- This tool's own `SIJBA_AUTH_TOKEN` may be a hash too. Then set `SIJBA_CORE_TOKEN` to the
+  plain secret it sends to Core (and the config-tool's own UI login stays the secret you type).
+
 ## History
 
 Every write and delete through the tool is recorded under
