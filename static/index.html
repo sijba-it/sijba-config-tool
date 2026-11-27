@@ -337,8 +337,9 @@
   <section class="page" id="page-agents" hidden>
     <h2>Agents</h2>
     <h3>Start an agent on another PC / server</h3>
-    <p class="lead">Run the generated command once in a terminal on the target machine (Linux with
-      <code>git</code>, <code>python3</code>; it installs a user service, no sudo). Choose either a
+    <p class="lead">Run the generated command in a terminal on the target machine (Linux with
+      <code>git</code>, <code>python3</code>; it installs a user service, no sudo). The installer ships with
+      each plugin and is safe to re-run (updates code, keeps existing directories and state). Choose either a
       <strong>single agent</strong> that runs on its own, or the <strong>agent controller</strong> that
       manages several projects and is steered from sijba chat.</p>
     <div class="row" style="gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap">
@@ -786,80 +787,21 @@ const AGENT_PLUGINS = {
 
 function agentInstallScript() {
   const v = id => document.getElementById(id).value.trim();
+  const q = x => "'" + x.replace(/'/g, "'\\''") + "'";   // single-quote for shell
   const tok = v("ag-token") || "<PLUGIN-TOKEN>";
-  const mode = v("ag-mode");
-  const head = "set -e\n";
-  const tail = (unit, name) => `systemctl --user daemon-reload
-systemctl --user enable --now ${unit}
-loginctl enable-linger "$USER" || true
-echo "done - logs: journalctl --user -u ${unit} -f"`;
-  if (mode === "controller") {
-    const roots = v("ag-roots") || "$HOME/workspaces";
-    return head + `git clone https://github.com/sijba-it/sijba-agent-controller.git ~/sijba-agent-controller
-cd ~/sijba-agent-controller
-python3 -m venv .venv && .venv/bin/pip install -q websockets
-mkdir -p ~/.config/systemd/user "${roots}"
-(umask 077; cat > ~/.config/sijba-agent-controller.env <<EOF
-SIJBA_URL=${publicCoreUrl}
-SIJBA_TOKEN=${tok}
-WORKSPACE_ROOTS=${roots}
-EOF
-)
-cat > ~/.config/systemd/user/sijba-agent-controller.service <<'EOF'
-[Unit]
-Description=SIJBA Agent Controller
-After=network-online.target
-[Service]
-WorkingDirectory=%h/sijba-agent-controller
-EnvironmentFile=%h/.config/sijba-agent-controller.env
-Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-Delegate=yes
-KillMode=process
-ExecStart=%h/sijba-agent-controller/.venv/bin/python controller.py
-Restart=always
-RestartSec=5
-[Install]
-WantedBy=default.target
-EOF
-` + tail("sijba-agent-controller");
+  const raw = repo => `https://raw.githubusercontent.com/sijba-it/${repo}/main/install.sh`;
+  const run = (repo, vars) => `curl -fsSL ${raw(repo)} | \\\n  ${vars.join(" \\\n  ")} \\\n  bash`;
+  const dq = x => '"' + x.replace(/(["`\\])/g, "\\$1") + '"';  // double-quote, $VARS still expand
+  if (v("ag-mode") === "controller") {
+    return run("sijba-agent-controller", [
+      "SIJBA_URL=" + q(publicCoreUrl), "SIJBA_TOKEN=" + q(tok),
+      "WORKSPACE_ROOTS=" + dq(v("ag-roots") || "$HOME/workspaces")]);
   }
   const pl = AGENT_PLUGINS[v("ag-plugin")];
   const name = (v("ag-name") || "my-project").replace(/[^A-Za-z0-9_.-]/g, "-");
-  const dir = v("ag-dir") || "$HOME/workspaces/" + name;
-  const unit = "sijba-agent-" + name;
-  const dirD = "$HOME/sijba-agents/" + name;
-  return head + `command -v ${pl.need} >/dev/null || { echo "missing: ${pl.need} (install and log in first)"; exit 1; }
-D=${dirD}
-mkdir -p "$D" ~/.config/systemd/user "${dir}"
-git clone https://github.com/sijba-it/${pl.repo}.git "$D/plugin"
-python3 -m venv "$D/.venv" && "$D/.venv/bin/pip" install -q websockets
-echo '{"projects":{}}' > "$D/registry.json"
-(umask 077; cat > ~/.config/${unit}.env <<EOF
-SIJBA_URL=${publicCoreUrl}
-SIJBA_TOKEN=${tok}
-PROJECT_NAME=${name}
-WORK_DIR=${dir}
-REGISTRY_FILE=$D/registry.json
-EOF
-)
-cat > ~/.config/systemd/user/${unit}.service <<EOF
-[Unit]
-Description=SIJBA agent ${name}
-After=network-online.target
-[Service]
-WorkingDirectory=$D/plugin
-EnvironmentFile=%h/.config/${unit}.env
-Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-Delegate=yes
-KillMode=process
-ExecStart=$D/.venv/bin/python main.py
-Restart=always
-RestartSec=5
-RestartPreventExitStatus=90 91
-[Install]
-WantedBy=default.target
-EOF
-` + tail(unit);
+  return run(pl.repo, [
+    "SIJBA_URL=" + q(publicCoreUrl), "SIJBA_TOKEN=" + q(tok),
+    "PROJECT_NAME=" + q(name), "WORK_DIR=" + dq(v("ag-dir") || "$HOME/workspaces/" + name)]);
 }
 
 function renderAgentInstall() {
