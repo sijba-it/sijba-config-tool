@@ -82,6 +82,7 @@
   nav.pages { display: flex; gap: .25rem; }
   nav.pages button { background: transparent; border: 0; color: var(--muted); padding: .4rem .75rem; border-radius: 8px; white-space: nowrap; }
   nav.pages button.active { background: var(--panel-2); color: var(--text); }
+  nav.pages button.locked { opacity: .55; cursor: not-allowed; }
   header .spacer { flex: 1; }
   #apply-btn.pending { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
 
@@ -562,7 +563,13 @@ async function startApp() {
   document.getElementById("app").hidden = false;
   try {  // the raw file editor is for the admin only (hosted tenants); the server enforces it too
     const me = await api("/api/me");
-    document.querySelector('nav.pages button[data-page="advanced"]').hidden = !me.admin;
+    // not hidden but visibly locked, so users see that the page exists and needs the admin token
+    const adv = document.querySelector('nav.pages button[data-page="advanced"]');
+    adv.disabled = !me.admin;
+    adv.classList.toggle("locked", !me.admin);
+    adv.textContent = me.admin ? "Advanced" : "🔒 Advanced";
+    adv.dataset.lock = me.admin ? "" : "Locked: sign in with the admin token to use Advanced";
+    adv.title = adv.dataset.lock;
   } catch (e) { /* login screen handles auth errors */ }
   document.getElementById("conn-block").hidden = !connectorsEnabled;
   setPending(localStorage.getItem("sijba_pending_apply") === "1");
@@ -1304,7 +1311,8 @@ function setStatusMap(files) {
   fileStatus = files || {};
   const advanced = document.querySelector('nav.pages button[data-page="advanced"]');
   advanced.classList.toggle("has-problems", Object.keys(fileStatus).length > 0);
-  advanced.title = Object.keys(fileStatus).length ? "Some config files have problems" : "";
+  advanced.title = advanced.dataset.lock
+    || (Object.keys(fileStatus).length ? "Some config files have problems" : "");
   document.querySelectorAll("#files button[data-path]").forEach(b => {
     const probs = problemsFor(b.dataset.path);
     b.classList.toggle("bad", probs.length > 0);
