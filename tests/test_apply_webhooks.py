@@ -47,7 +47,7 @@ def client(monkeypatch, tmp_path, core_server):
 def test_me_checks_token(client):
     c, _ = client
     assert c.get("/api/me").status_code == 401
-    assert c.get("/api/me", headers=AUTH).json() == {"ok": True, "connectors": False, "admin": True, "restricted": False}
+    assert c.get("/api/me", headers=AUTH).json() == {"ok": True, "connectors": False, "admin": True, "restricted": False, "demo": False}
 
 
 def test_apply_calls_core_reload_with_token(client):

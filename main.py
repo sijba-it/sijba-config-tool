@@ -37,6 +37,9 @@ AUTH_TOKEN = os.environ.get("SIJBA_AUTH_TOKEN") or None
 # editor and core.yaml need SIJBA_ADMIN_TOKEN (plain or hash), which only the operator knows.
 RESTRICTED = os.environ.get("SIJBA_RESTRICTED", "").strip().lower() in ("1", "true", "yes", "on")
 ADMIN_TOKEN = os.environ.get("SIJBA_ADMIN_TOKEN") or None
+# Demo tenant: look but do not touch - webhooks and connectors cannot be added or removed (the chart
+# also drops the provisioner and closes the network). The admin token still works.
+DEMO = os.environ.get("SIJBA_DEMO", "").strip().lower() in ("1", "true", "yes", "on")
 CORE_TOKEN = os.environ.get("SIJBA_CORE_TOKEN") or (None if authhash.is_hash(AUTH_TOKEN) else AUTH_TOKEN)
 ROOT_PATH = (os.environ.get("ROOT_PATH") or "").rstrip("/")
 SCHEMA_PATH = Path(
@@ -91,6 +94,12 @@ def _is_admin(authorization: str | None, token: str | None) -> bool:
     """Everything is admin unless the tool runs restricted (hosted tenants), where only the
     separate admin token counts - the user's login is not enough."""
     return (not RESTRICTED) or _matches(_bearer(authorization, token), ADMIN_TOKEN)
+
+
+def _check_not_demo(authorization: str | None = Header(default=None), token: str | None = None) -> None:
+    _check_auth(authorization, token)
+    if DEMO and not _matches(_bearer(authorization, token), ADMIN_TOKEN):
+        raise HTTPException(status_code=403, detail="not available in the demo")
 
 
 def _check_admin(authorization: str | None = Header(default=None), token: str | None = None) -> None:
@@ -174,7 +183,8 @@ def serialize_file(path: str, body: SerializeBody):
 @api.get("/api/me", dependencies=[Depends(_check_auth)])
 def me(authorization: str | None = Header(default=None), token: str | None = None):
     return {"ok": True, "connectors": provisioner is not None,
-            "admin": _is_admin(authorization, token), "restricted": RESTRICTED}
+            "admin": _is_admin(authorization, token), "restricted": RESTRICTED,
+            "demo": DEMO and not _matches(_bearer(authorization, token), ADMIN_TOKEN)}
 
 
 @api.post("/api/apply", dependencies=[Depends(_check_auth)])
@@ -242,7 +252,7 @@ class WebhookBody(BaseModel):
     name: str
 
 
-@api.post("/api/webhooks", dependencies=[Depends(_check_auth)])
+@api.post("/api/webhooks", dependencies=[Depends(_check_not_demo)])
 def webhooks_add(body: WebhookBody):
     name = body.name.strip().lower()
     if not WEBHOOK_NAME.match(name):
@@ -258,7 +268,7 @@ def webhooks_add(body: WebhookBody):
     return {"name": name, "token": hooks[name], "from_env": False}
 
 
-@api.delete("/api/webhooks/{name}", dependencies=[Depends(_check_auth)])
+@api.delete("/api/webhooks/{name}", dependencies=[Depends(_check_not_demo)])
 def webhooks_delete(name: str):
     data = _core_yaml()
     hooks = dict(data.get("webhooks") or {})
@@ -497,12 +507,12 @@ def connectors_list():
     return _need_provisioner().list()
 
 
-@api.put("/api/connectors/{ctype}", dependencies=[Depends(_check_auth)])
+@api.put("/api/connectors/{ctype}", dependencies=[Depends(_check_not_demo)])
 def connectors_put(ctype: str, body: ConnectorBody):
     return _need_provisioner().put(ctype, body.fields)
 
 
-@api.delete("/api/connectors/{ctype}", dependencies=[Depends(_check_auth)])
+@api.delete("/api/connectors/{ctype}", dependencies=[Depends(_check_not_demo)])
 def connectors_delete(ctype: str):
     return _need_provisioner().delete(ctype)
 

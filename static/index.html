@@ -82,6 +82,7 @@
   nav.pages { display: flex; gap: .25rem; }
   nav.pages button { background: transparent; border: 0; color: var(--muted); padding: .4rem .75rem; border-radius: 8px; white-space: nowrap; }
   nav.pages button.active { background: var(--panel-2); color: var(--text); }
+  .demo-banner { background: var(--panel-2); border-bottom: 1px solid var(--border); padding: .6rem 1rem; font-size: .9rem; color: var(--text); }
   nav.pages button.locked { opacity: .55; cursor: not-allowed; }
   header .spacer { flex: 1; }
   #apply-btn.pending { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
@@ -305,6 +306,11 @@
     <button class="btn" id="apply-btn" type="button" title="Load saved config files into the running sijba">Apply changes</button>
     <button class="btn ghost" id="logout-btn" type="button">Sign out</button>
   </header>
+  <div id="demo-banner" class="demo-banner" hidden>
+    <strong>Demo.</strong> You can look around and change the routing. Webhooks and connectors cannot be added or
+    removed, and this instance has no outgoing network access, so connectors and calls to outside services will not
+    work. The example webhook below is live: use its URL to send a test message.
+  </div>
 
   <section class="page" id="page-connections">
     <div id="conn-block">
@@ -413,6 +419,7 @@
 
 <script>
 const base = "__BASE_PATH__";
+let demoMode = false;
 const connectorsEnabled = "__CONNECTORS__" === "1";
 const publicCoreUrl = "__PUBLIC_CORE_URL__" || location.origin;
 
@@ -570,6 +577,8 @@ async function startApp() {
     adv.textContent = me.admin ? "Advanced" : "🔒 Advanced";
     adv.dataset.lock = me.admin ? "" : "Locked: sign in with the admin token to use Advanced";
     adv.title = adv.dataset.lock;
+    demoMode = !!me.demo;
+    document.getElementById("demo-banner").hidden = !demoMode;
   } catch (e) { /* login screen handles auth errors */ }
   document.getElementById("conn-block").hidden = !connectorsEnabled;
   setPending(localStorage.getItem("sijba_pending_apply") === "1");
@@ -727,7 +736,8 @@ async function loadHooks() {
       loadHooks();
     } catch (err) { if (!(err instanceof AuthError)) toast(errText(err), "bad"); }
   });
-  box.appendChild(form);
+  if (demoMode) box.appendChild(el("p", {className: "empty"}, "Demo: webhooks cannot be added or removed here."));
+  else box.appendChild(form);
 }
 
 function hookRow(h, steps) {
@@ -749,7 +759,7 @@ function hookRow(h, steps) {
       shown = !shown; urlEl.textContent = shown ? url : masked; e.target.textContent = shown ? "Hide" : "Show";
     }}, "Show"));
   }
-  row.appendChild(el("button", {className: "btn small ghost danger", type: "button", onClick: async () => {
+  if (!demoMode) row.appendChild(el("button", {className: "btn small ghost danger", type: "button", onClick: async () => {
     if (!confirm("Delete webhook " + h.name + "? Tools using its URL stop working.")) return;
     try {
       await api("/api/webhooks/" + encodeURIComponent(h.name), {method: "DELETE"});

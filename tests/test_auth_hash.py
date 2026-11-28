@@ -62,7 +62,7 @@ def test_restricted_mode_needs_admin_token_for_files(monkeypatch, tmp_path):
                  SIJBA_RESTRICTED="1", SIJBA_ADMIN_TOKEN="adm-tok")
     c = TestClient(m.app)
     user, admin = {"Authorization": "Bearer user-tok"}, {"Authorization": "Bearer adm-tok"}
-    assert c.get("/api/me", headers=user).json() == {"ok": True, "connectors": False, "admin": False, "restricted": True}
+    assert c.get("/api/me", headers=user).json() == {"ok": True, "connectors": False, "admin": False, "restricted": True, "demo": False}
     assert c.get("/api/me", headers=admin).json()["admin"] is True
     for method, path in [("get", "/api/files"), ("get", "/api/files/core.yaml"),
                          ("put", "/api/files/core.yaml"), ("post", "/api/parse/core.yaml"),
@@ -80,3 +80,22 @@ def test_unrestricted_mode_everyone_is_admin(monkeypatch, tmp_path):
     c = TestClient(m.app)
     assert c.get("/api/files", headers={"Authorization": "Bearer user-tok"}).status_code == 200
     assert c.get("/api/me", headers={"Authorization": "Bearer user-tok"}).json()["admin"] is True
+
+
+def test_demo_mode_blocks_webhook_and_connector_writes_but_not_routing(monkeypatch, tmp_path):
+    (tmp_path / "core.yaml").write_text("port: 1\nwebhooks:\n  example: demo-token\n")
+    m = load_app(monkeypatch, tmp_path, SIJBA_CORE_URL="http://127.0.0.1:1", SIJBA_AUTH_TOKEN="user-tok",
+                 SIJBA_RESTRICTED="1", SIJBA_DEMO="1", SIJBA_ADMIN_TOKEN="adm-tok")
+    c = TestClient(m.app)
+    user, admin = {"Authorization": "Bearer user-tok"}, {"Authorization": "Bearer adm-tok"}
+    assert c.get("/api/me", headers=user).json()["demo"] is True
+    assert c.get("/api/me", headers=admin).json()["demo"] is False
+    hooks = c.get("/api/webhooks", headers=user).json()["webhooks"]
+    assert hooks == [{"name": "example", "token": "demo-token", "from_env": False}]  # visible incl. token
+    assert c.post("/api/webhooks", headers=user, json={"name": "mine"}).status_code == 403
+    assert c.delete("/api/webhooks/example", headers=user).status_code == 403
+    assert c.put("/api/connectors/pushover", headers=user, json={"fields": {}}).status_code == 403
+    assert c.delete("/api/connectors/pushover", headers=user).status_code == 403
+    assert c.post("/api/webhooks", headers={"Authorization": "Bearer nope"}, json={"name": "mine"}).status_code == 401
+    assert c.get("/api/routing", headers=user).status_code in (200, 502)  # routing stays usable
+    assert c.post("/api/webhooks", headers=admin, json={"name": "adm"}).status_code == 200
